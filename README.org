@@ -1,0 +1,64 @@
+* Bugs
+- OpenRazer sometimes reports 0% battery after mouse wakes from sleep mode
+
+* Planning
+** Components
+- [-] Time
+  - [X] 12-hour
+  - [ ] 24-hour
+  - [ ] Timezones
+- [ ] Date
+  - [ ] Calender
+    - [ ] CalDAV integration
+- [-] Audio
+  - [X] Volume/mute
+  - [ ] Input/output selector
+- [ ] Media status (mpd)
+- [ ] Display brightness (backlight)
+  - [ ] Current brightness
+  - [ ] Brightness adjuster
+- [ ] Hardware status (CPU/GPU/MEM)
+  - [ ] Frequency
+  - [ ] Temperature
+  - [ ] Utilization
+- [ ] Drive/filesystem status
+  - [ ] Remaining storage
+  - [ ] USB storage device mount/eject
+- [ ] Laptop battery status
+- [-] Peripheral battery status
+  - [-] OpenRazer
+    - [-] Mouse
+      - [X] Battery Level
+      - [ ] Charging status
+    - [ ] Keyboard
+    - [ ] Headset
+  - [ ] Generic
+    - [ ] Mouse
+    - [ ] Keyboard
+    - [ ] Headset
+- [ ] Bluetooth
+  - [ ] Toggle
+  - [ ] List/connect to devices
+- [ ] Network
+  - [ ] Toggle
+  - [ ] List/connect to networks
+  - [ ] VPN status
+- [-] Workspaces
+  - [-] Hyprland
+- [ ] Scripts
+  - [ ] Script output
+    - [ ] Polling
+    - [ ] Watching
+  - [ ] Click-to-run
+- [ ] Screen share indicator
+
+** Features
+- [X] Wayland support
+- [ ] X11 support (maybe)
+- [ ] Notification daemon
+- [ ] Multi-monitor support
+- [X] SCSS support
+- [ ] Configuration
+  - [ ] Custom stylesheet
+  - [ ] Per-monitor options
+  - [ ] Per-component options

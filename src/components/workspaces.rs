@@ -1,0 +1,258 @@
+use std::{
+    f64::consts::PI,
+    time::{Duration, Instant},
+};
+
+use relm4::{
+    component::{AsyncComponentParts, SimpleAsyncComponent},
+    drawing::DrawHandler,
+    gtk::{
+        self,
+        cairo::{self, LineCap, Operator},
+        traits::{DrawingAreaExt, WidgetExt},
+    },
+    AsyncComponentSender,
+};
+use tokio::{
+    task,
+    time::{self, MissedTickBehavior},
+};
+
+use crate::reducers::hyprland::HyprlandReducer;
+use crate::reducers::hyprland::REDUCER as HYPRLAND;
+
+const TARGET_FPS: f64 = 100.0; // TODO get directly from config instead
+const WIDTH: i32 = 16 * 14; // TODO derive from config (font size) instead
+const FAST_INTERPOLATION: Duration = Duration::from_millis(150);
+const SLOW_INTERPOLATION: Duration = Duration::from_millis(400);
+
+pub struct WorkspacesModel {
+    drawing: bool,
+    last_update: Instant,
+    hyprland: Option<HyprlandReducer>,
+    handler: DrawHandler,
+    width: f64,
+    height: f64,
+    dot_fast_x: f64,
+    dot_fast_x_start: f64,
+    dot_slow_x: f64,
+    dot_slow_x_start: f64,
+}
+
+#[derive(Debug)]
+pub enum WorkspacesInput {
+    Update(HyprlandReducer),
+    Resize((i32, i32)),
+    Draw,
+}
+
+#[derive(Debug)]
+pub enum Output {}
+
+#[relm4::component(async, pub)]
+impl SimpleAsyncComponent for WorkspacesModel {
+    type Input = WorkspacesInput;
+    type Output = Output;
+    type Init = ();
+
+    view! {
+        #[root]
+        gtk::Button {
+            set_cursor_from_name: Some("pointer"),
+            set_css_classes: &["workspaces"],
+
+            #[local_ref]
+            area -> gtk::DrawingArea {
+                set_width_request: WIDTH,
+
+                connect_resize[sender] => move |_, x, y| {
+                    sender.input(WorkspacesInput::Resize((x, y)));
+                }
+            },
+        }
+    }
+
+    async fn init(
+        _init: Self::Init,
+        root: Self::Root,
+        sender: AsyncComponentSender<Self>,
+    ) -> AsyncComponentParts<Self> {
+        tracing::debug!("initializing workspaces component");
+
+        let (tx, rx) = relm4::channel::<WorkspacesInput>();
+        HYPRLAND.subscribe(&tx, |data| WorkspacesInput::Update(data.clone()));
+        let sender_clone = sender.clone();
+        task::spawn(async move {
+            while let Some(data) = rx.recv().await {
+                sender_clone.input(data);
+            }
+        });
+
+        let sender_clone = sender.clone();
+        task::spawn(async move {
+            let target_frame_time = Duration::from_micros((1.0 / TARGET_FPS * 1_000_000.0) as u64);
+            let mut interval = time::interval(target_frame_time);
+            interval.set_missed_tick_behavior(MissedTickBehavior::Skip);
+
+            loop {
+                sender_clone.input(WorkspacesInput::Draw);
+                interval.tick().await;
+            }
+        });
+
+        let model = WorkspacesModel {
+            drawing: false,
+            last_update: Instant::now(),
+            hyprland: None,
+            handler: DrawHandler::new(),
+            width: 0.0,
+            height: 0.0,
+            dot_fast_x: 0.0,
+            dot_fast_x_start: 0.0,
+            dot_slow_x: 0.0,
+            dot_slow_x_start: 0.0,
+        };
+        let area = model.handler.drawing_area();
+        let widgets = view_output!();
+
+        AsyncComponentParts { model, widgets }
+    }
+
+    async fn update(&mut self, message: Self::Input, _sender: AsyncComponentSender<Self>) {
+        match message {
+            WorkspacesInput::Update(data) => {
+                self.last_update = Instant::now();
+                self.drawing = true;
+                self.hyprland = Some(data);
+                self.dot_fast_x_start = self.dot_fast_x;
+                self.dot_slow_x_start = self.dot_slow_x;
+            }
+            WorkspacesInput::Resize((x, y)) => {
+                self.width = x as f64;
+                self.height = y as f64;
+            }
+            WorkspacesInput::Draw => {
+                let ctx = self.handler.get_context();
+                self.draw(&ctx);
+            }
+        };
+    }
+}
+
+impl WorkspacesModel {
+    fn clear(&self, ctx: &cairo::Context) {
+        ctx.set_operator(Operator::Clear);
+        ctx.set_source_rgba(0.0, 0.0, 0.0, 0.0);
+        ctx.paint().expect("Couldn't clear context");
+    }
+
+    fn draw(&mut self, ctx: &cairo::Context) {
+        if !self.drawing {
+            return;
+        };
+        let Some(hyprland) = &self.hyprland else {
+            return
+        };
+
+        // Calculate placement of circles
+        let thickness = 2.0;
+        let spacing = 6.0;
+        let horizontal_margin = spacing * 2.0;
+        let n_circles = 10.0;
+        let n_spaces = n_circles - 1.0;
+        let diameter = (self.width
+            - (spacing * n_spaces)
+            - (thickness * n_circles)
+            - (horizontal_margin * 2.0))
+            / n_circles;
+        let radius = diameter / 2.0;
+        let offset_per_workspace = spacing + thickness + diameter;
+        let initial_offset = radius + (thickness / 2.0) + horizontal_margin;
+        let y = self.height / 2.0;
+        let x = |i: i16| initial_offset + (offset_per_workspace * (i as f64));
+
+        // Stop drawing if interpolation is finished
+        let time = self.last_update.elapsed();
+        self.drawing = time < SLOW_INTERPOLATION;
+
+        // Get color from stylesheet
+        let color = self.handler.drawing_area().color();
+        let (red, green, blue, alpha) = (
+            color.red() as f64,
+            color.green() as f64,
+            color.blue() as f64,
+            color.alpha() as f64,
+        );
+
+        // Begin drawing
+        self.clear(&ctx);
+        ctx.set_operator(Operator::Source);
+
+        // Workspaces
+        {
+            ctx.set_line_width(thickness);
+
+            for i in 0..(n_circles as i16) {
+                let empty = if let Some(ws) = hyprland.workspaces.get(&i) {
+                    ws.windows == 0
+                } else {
+                    true
+                };
+                let alpha = alpha * if empty { 0.5 } else { 1.0 };
+
+                ctx.set_source_rgba(red, green, blue, alpha);
+                ctx.arc(x(i), y, radius, 0.0, std::f64::consts::PI * 2.0);
+                ctx.stroke().expect("couldn't stroke arc");
+            }
+        }
+
+        // Active workspace
+        {
+            let radius = radius - thickness * 1.5;
+            let x_dest = x(hyprland.active_workspace);
+
+            if self.dot_slow_x < x(0) {
+                // Set initial positions to prevent dot coming in from the left side when the
+                // animation first begins.
+                self.dot_fast_x = x_dest;
+                self.dot_fast_x_start = x_dest;
+                self.dot_slow_x = x_dest;
+                self.dot_slow_x_start = x_dest;
+            } else {
+                self.dot_fast_x = if time < FAST_INTERPOLATION {
+                    ease_out_sine(
+                        time,
+                        self.dot_fast_x_start,
+                        x_dest - self.dot_fast_x_start,
+                        FAST_INTERPOLATION,
+                    )
+                } else {
+                    x_dest
+                };
+                self.dot_slow_x = if time < SLOW_INTERPOLATION {
+                    ease_out_sine(
+                        time,
+                        self.dot_slow_x_start,
+                        x_dest - self.dot_slow_x_start,
+                        SLOW_INTERPOLATION,
+                    )
+                } else {
+                    x_dest
+                };
+            }
+
+            ctx.set_source_rgba(red, green, blue, alpha);
+            ctx.set_line_width(radius * 2.0);
+            ctx.set_line_cap(LineCap::Round);
+            ctx.move_to(self.dot_fast_x, y);
+            ctx.line_to(self.dot_slow_x, y);
+            ctx.stroke().expect("couldn't stroke arc");
+        }
+    }
+}
+
+// into
+fn ease_out_sine(elapsed: Duration, start: f64, change: f64, duration: Duration) -> f64 {
+    // TODO replace with Duration::div_duration_f64 once div_duration is stabilized (#63139)
+    change * (elapsed.as_secs_f64() / duration.as_secs_f64() * (PI / 2.0)).sin() + start
+}
