@@ -8,9 +8,9 @@ use relm4::{
 use tokio::time;
 use tracing::debug;
 
-use crate::components::iconbutton::IconButtonModel;
+use crate::components::iconbutton::{IconButtonInit, IconButtonModel};
 
-use super::iconbutton::{IconButtonInit, IconButtonInput};
+use super::iconbutton::IconButtonInput;
 
 pub struct TimeModel {
     interval: time::Interval,

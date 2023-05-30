@@ -19,8 +19,10 @@ use tokio::{
 };
 use tracing::debug;
 
-use crate::reducers::hyprland::REDUCER as HYPRLAND;
-use crate::{config, reducers::hyprland::HyprlandReducer};
+use crate::{
+    config,
+    reducers::hyprland::{HyprlandReducer, REDUCER as HYPRLAND},
+};
 
 const FAST_INTERPOLATION: Duration = Duration::from_millis(150);
 const SLOW_INTERPOLATION: Duration = Duration::from_millis(400);

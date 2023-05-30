@@ -5,10 +5,11 @@ use relm4::{
 };
 use tracing::debug;
 
-use super::iconbutton::{IconButtonInit, IconButtonInput};
-use crate::components::iconbutton::IconButtonModel;
-use crate::reducers::pulseaudio::REDUCER as PULSEAUDIO;
-use crate::util;
+use crate::{
+    components::iconbutton::{IconButtonInit, IconButtonInput, IconButtonModel},
+    reducers::pulseaudio::REDUCER as PULSEAUDIO,
+    util,
+};
 
 pub struct VolumeModel {
     iconbutton: Controller<IconButtonModel>,

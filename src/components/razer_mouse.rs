@@ -5,9 +5,13 @@ use relm4::{
 };
 use tracing::debug;
 
-use super::iconbutton::{IconButtonInit, IconButtonInput};
-use crate::reducers::openrazer::REDUCER as OPENRAZER;
-use crate::{components::iconbutton::IconButtonModel, util};
+use crate::{
+    components::iconbutton::{IconButtonInit, IconButtonModel},
+    reducers::openrazer::REDUCER as OPENRAZER,
+    util,
+};
+
+use super::iconbutton::IconButtonInput;
 
 pub struct RazerMouseModel {
     iconbutton: Controller<IconButtonModel>,
