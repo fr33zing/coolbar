@@ -59,6 +59,7 @@
 - [ ] Multi-monitor support
 - [X] SCSS support
 - [ ] Configuration
+  - [ ] Nix support
   - [ ] Custom stylesheet
   - [ ] Per-monitor options
   - [ ] Per-component options
