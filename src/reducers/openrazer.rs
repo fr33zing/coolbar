@@ -1,14 +1,14 @@
 use std::time::Duration;
 
 use anyhow::{anyhow, Result};
-use glib::Variant;
-use relm4::gtk::gio::Cancellable;
-use relm4::gtk::gio::DBusConnection;
-use relm4::gtk::gio::DBusMessage;
-use relm4::gtk::gio::DBusSignalFlags;
-use relm4::{gtk::gio::DBusSendMessageFlags, Reducer, Reducible};
-use tokio::sync::OnceCell;
-use tokio::task;
+use relm4::{
+    gtk::{
+        gio::{Cancellable, DBusConnection, DBusMessage, DBusSendMessageFlags, DBusSignalFlags},
+        glib::Variant,
+    },
+    Reducer, Reducible,
+};
+use tokio::{sync::OnceCell, task};
 
 use crate::globals::wait_for_dbus;
 
