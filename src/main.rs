@@ -13,7 +13,7 @@ use relm4::{
 use tracing::Level;
 use tracing_subscriber::FmtSubscriber;
 
-pub mod globals;
+pub mod dbus;
 
 mod components;
 mod config;
@@ -147,7 +147,7 @@ fn startup(app: &gtk::Application) -> Result<()> {
 
     tracing::debug!("passing dbus connection to reducers");
     if let Some(dbus) = app.dbus_connection() {
-        globals::DBUS_CONNECTION.set(dbus)?;
+        dbus::DBUS_CONNECTION.set(dbus)?;
     }
 
     Ok(())
