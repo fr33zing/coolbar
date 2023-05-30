@@ -3,6 +3,7 @@ use relm4::{
     gtk::{self, traits::BoxExt},
     AsyncComponentSender, Component, ComponentController, Controller,
 };
+use tracing::debug;
 
 use super::iconbutton::{IconButtonInit, IconButtonInput};
 use crate::reducers::openrazer::REDUCER as OPENRAZER;
@@ -48,7 +49,7 @@ impl SimpleAsyncComponent for RazerMouseModel {
             }
         });
 
-        tracing::debug!("initializing razer mouse component");
+        debug!("initializing razer mouse component");
         let iconbutton = IconButtonModel::builder()
             .launch(IconButtonInit {
                 class: "mouse".into(),

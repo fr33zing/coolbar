@@ -10,7 +10,7 @@ use relm4::{
     },
     Component, ComponentParts, ComponentSender, RelmApp,
 };
-use tracing::Level;
+use tracing::{debug, error, info, trace, Level};
 use tracing_subscriber::FmtSubscriber;
 
 pub mod dbus;
@@ -82,7 +82,7 @@ impl Component for AppModel {
         root: &Self::Root,
         _sender: ComponentSender<Self>,
     ) -> ComponentParts<Self> {
-        tracing::debug!("initializing root component");
+        debug!("initializing root component");
         initialize_window(root);
 
         let workspaces = WorkspacesModel::builder().launch(()).detach();
@@ -99,14 +99,14 @@ impl Component for AppModel {
         let widgets = view_output!();
 
         let took_micros = START_INSTANT.get().unwrap().elapsed().as_micros();
-        tracing::info!({ took_micros }, "finished initializing app");
+        info!({ took_micros }, "finished initializing app");
 
         ComponentParts { model, widgets }
     }
 }
 
 fn initialize_window(window: &gtk::Window) {
-    tracing::debug!("initializing window");
+    debug!("initializing window");
     gtk4_layer_shell::init_for_window(window);
     gtk4_layer_shell::set_layer(window, gtk4_layer_shell::Layer::Background);
     gtk4_layer_shell::auto_exclusive_zone_enable(window);
@@ -115,7 +115,7 @@ fn initialize_window(window: &gtk::Window) {
     gtk4_layer_shell::set_anchor(window, gtk4_layer_shell::Edge::Right, true);
     gtk4_layer_shell::set_anchor(window, gtk4_layer_shell::Edge::Top, true);
     gtk4_layer_shell::set_anchor(window, gtk4_layer_shell::Edge::Bottom, false);
-    tracing::debug!("window initialized");
+    debug!("window initialized");
 }
 
 fn load_styles(config: &Config) {
@@ -139,13 +139,13 @@ fn init_tracing() {
 }
 
 fn startup(app: &gtk::Application) -> Result<()> {
-    tracing::debug!("loading default config");
+    debug!("loading default config");
     let config = Config::default();
 
-    tracing::debug!("loading default styles");
+    debug!("loading default styles");
     load_styles(&config);
 
-    tracing::debug!("passing dbus connection to reducers");
+    debug!("passing dbus connection to reducers");
     if let Some(dbus) = app.dbus_connection() {
         dbus::DBUS_CONNECTION.set(dbus)?;
     }
@@ -155,13 +155,13 @@ fn startup(app: &gtk::Application) -> Result<()> {
 
 fn init() -> Result<()> {
     init_tracing();
-    tracing::trace!("initialized tracing");
-    tracing::info!("initializing app");
+    trace!("initialized tracing");
+    info!("initializing app");
 
-    tracing::debug!("loading config");
+    debug!("loading config");
     config::load();
 
-    tracing::debug!("creating app");
+    debug!("creating app");
     let app = gtk::Application::builder()
         .application_id(APPLICATION_ID)
         .build();
@@ -171,14 +171,14 @@ fn init() -> Result<()> {
         }
     });
 
-    tracing::debug!("running app");
+    debug!("running app");
     RelmApp::from_app(app).run::<AppModel>(());
 
     Ok(())
 }
 
 fn handle_fatal_error(err: Error) {
-    tracing::error!("FATAL ERROR: {err}");
+    error!("FATAL ERROR: {err}");
 }
 
 fn main() {
@@ -190,5 +190,5 @@ fn main() {
         handle_fatal_error(err);
     }
 
-    tracing::debug!("exiting");
+    debug!("exiting");
 }

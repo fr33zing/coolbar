@@ -9,8 +9,9 @@ use relm4::{
     Reducer, Reducible,
 };
 use tokio::{sync::OnceCell, task};
+use tracing::{debug, error, trace};
 
-use crate::globals::wait_for_dbus;
+use crate::dbus::wait_for_dbus;
 
 const OPENRAZER_BUS_NAME: Option<&str> = Some("org.razer");
 const BATTERY_POLL_RATE: Duration = Duration::from_secs(666);
@@ -21,12 +22,14 @@ static DBUS: OnceCell<&DBusConnection> = OnceCell::const_new();
 
 #[derive(Debug, Clone)]
 pub struct OpenRazerReducer {
+    pub mouse_error: Option<String>,
     pub mouse_detected: bool,
     pub mouse_battery: f64,
 }
 
 #[derive(Debug)]
 pub enum OpenRazerInput {
+    MouseError(String),
     MouseDetected(bool),
     MouseBattery(f64),
     DeviceAdded,
@@ -39,11 +42,12 @@ impl Reducible for OpenRazerReducer {
     fn init() -> Self {
         task::spawn(async {
             if let Err(err) = connect().await {
-                tracing::error!("dbus connection failed: {err}");
+                error!("dbus connection failed: {err}");
             }
         });
 
         Self {
+            mouse_error: None,
             mouse_detected: false,
             mouse_battery: 0.0,
         }
@@ -51,6 +55,10 @@ impl Reducible for OpenRazerReducer {
 
     fn reduce(&mut self, input: Self::Input) -> bool {
         match input {
+            OpenRazerInput::MouseError(err) => {
+                error!({ err }, "failed to update mouse battery level");
+                self.mouse_error = Some(err);
+            }
             OpenRazerInput::MouseDetected(detected) => {
                 self.mouse_detected = detected;
             }
@@ -59,12 +67,14 @@ impl Reducible for OpenRazerReducer {
                 self.mouse_battery = battery;
             }
             OpenRazerInput::DeviceAdded | OpenRazerInput::DeviceRemoved => {
-                tracing::debug!(
+                debug!(
                     { reason = format!("{:?}", input) },
                     "updating battery level early"
                 );
-                update_mouse_battery_level(DBUS.get().expect("no dbus connection available"))
-                    .unwrap(); // TODO fix me
+                let dbus = DBUS.get().expect("no dbus connection available");
+                if let Err(err) = update_mouse_battery_level(dbus) {
+                    REDUCER.emit(OpenRazerInput::MouseError(err.to_string()));
+                }
             }
         }
         true
@@ -86,12 +96,12 @@ fn call_dbus_method(dbus: &DBusConnection, message: &DBusMessage) -> Result<Vari
 }
 
 async fn connect() -> Result<()> {
-    tracing::trace!("waiting for dbus connection...");
+    trace!("waiting for dbus connection...");
     let dbus = wait_for_dbus().await?;
     DBUS.set(dbus)?;
-    tracing::trace!("got dbus connection");
+    trace!("got dbus connection");
 
-    tracing::trace!("subscribing to openrazer dbus events");
+    trace!("subscribing to openrazer dbus events");
     dbus.signal_subscribe(
         OPENRAZER_BUS_NAME,
         Some("razer.devices"),
@@ -111,10 +121,10 @@ async fn connect() -> Result<()> {
         |_, _, _, _, _, _| REDUCER.emit(OpenRazerInput::DeviceRemoved),
     );
 
-    tracing::trace!("beginning device battery polling loop");
+    trace!("beginning device battery polling loop");
     loop {
         if let Err(err) = update_mouse_battery_level(dbus) {
-            tracing::error!("failed to update mouse battery level: {err}");
+            REDUCER.emit(OpenRazerInput::MouseError(err.to_string()));
             return Err(err);
         }
         tokio::time::sleep(BATTERY_POLL_RATE).await;
@@ -122,7 +132,7 @@ async fn connect() -> Result<()> {
 }
 
 fn update_mouse_battery_level(dbus: &DBusConnection) -> Result<()> {
-    tracing::trace!("getting razer devices");
+    trace!("getting razer devices");
     let devices = {
         let message = DBusMessage::new_method_call(
             OPENRAZER_BUS_NAME,
@@ -136,9 +146,9 @@ fn update_mouse_battery_level(dbus: &DBusConnection) -> Result<()> {
             .try_child_get::<Vec<String>>(0)?
             .ok_or_else(|| anyhow!("failed to get razer devices"))?
     };
-    tracing::trace!("got {} razer device(s)", devices.len());
+    trace!("got {} razer device(s)", devices.len());
 
-    tracing::trace!("finding first mouse");
+    trace!("finding first mouse");
     let mouse = devices.iter().find(|device| {
         let message = DBusMessage::new_method_call(
             OPENRAZER_BUS_NAME,
@@ -153,14 +163,14 @@ fn update_mouse_battery_level(dbus: &DBusConnection) -> Result<()> {
         device_type == "mouse"
     });
     let Some(mouse) = mouse else {
-        tracing::debug!("no mouse found");
+        debug!("no mouse found");
         REDUCER.emit(OpenRazerInput::MouseDetected(false));
 
         return Ok(());
     };
-    tracing::trace!({ mouse }, "found mouse");
+    trace!({ mouse }, "found mouse");
 
-    tracing::trace!({ mouse }, "getting battery level");
+    trace!({ mouse }, "getting battery level");
     let battery = {
         let message = DBusMessage::new_method_call(
             OPENRAZER_BUS_NAME,
@@ -174,7 +184,7 @@ fn update_mouse_battery_level(dbus: &DBusConnection) -> Result<()> {
             .try_child_get::<f64>(0)?
             .ok_or_else(|| anyhow!("failed to get mouse battery level"))?
     };
-    tracing::trace!({ battery, mouse }, "got battery level");
+    trace!({ battery, mouse }, "got battery level");
 
     REDUCER.emit(OpenRazerInput::MouseBattery(battery));
 

@@ -10,6 +10,7 @@ use pulse::{
 };
 use relm4::{Reducer, Reducible};
 use tokio::{sync::OnceCell, task};
+use tracing::{debug, error, trace, warn};
 
 const CONTEXT_APP_NAME: &str = "FooApp"; // TODO change me lol
 const CONTEXT_NAME: &str = "FooAppContext";
@@ -38,7 +39,7 @@ impl Reducible for PulseAudioReducer {
     fn init() -> Self {
         task::spawn(async move {
             if let Err(err) = connect().await {
-                tracing::error!("pulse connection failed: {err}");
+                error!("pulse connection failed: {err}");
             }
         });
 
@@ -53,7 +54,7 @@ impl Reducible for PulseAudioReducer {
             PulseAudioInput::Update(volume, muted) => {
                 self.volume = f32::round((volume as f32) / 65535.0 * 100.0);
                 self.muted = muted;
-                tracing::trace!("volume: {}%, muted: {}", self.volume, muted);
+                trace!("volume: {}%, muted: {}", self.volume, muted);
             }
         }
         true
@@ -63,7 +64,7 @@ impl Reducible for PulseAudioReducer {
 // Adapted from the following example:
 // https://docs.rs/libpulse-binding/2.26.0/libpulse_binding/mainloop/threaded/index.html
 async fn connect() -> Result<()> {
-    tracing::debug!("connecting to pulse server");
+    debug!("connecting to pulse server");
 
     let proplist = Proplist::new();
     ensure!(proplist.is_some(), "failed to create proplist");
@@ -128,7 +129,7 @@ async fn connect() -> Result<()> {
             .borrow_mut()
             .set_subscribe_callback(Some(Box::new(move |_, _, _| {
                 let Some(default_sink_name) = DEFAULT_SINK_NAME.get() else {
-                    tracing::warn!("got sink event before default sink is known");
+                    warn!("got sink event before default sink is known");
                     return;
                 };
                 unsafe {
@@ -148,9 +149,9 @@ async fn connect() -> Result<()> {
             .borrow_mut()
             .subscribe(InterestMaskSet::SINK, |success| {
                 if success {
-                    tracing::debug!("successfully subscribed to sink events");
+                    debug!("successfully subscribed to sink events");
                 } else {
-                    tracing::debug!("failed to subscribe to sink events");
+                    debug!("failed to subscribe to sink events");
                 }
             });
     }
@@ -160,14 +161,14 @@ async fn connect() -> Result<()> {
         let introspect = context.borrow().introspect();
         introspect.get_server_info(move |info| {
             let Some(default_sink_name) = &info.default_sink_name else {
-                tracing::error!("failed to find default sink");
+                error!("failed to find default sink");
                 return;
             };
 
             DEFAULT_SINK_NAME
                 .set(default_sink_name.to_string())
                 .expect("failed to store default sink name");
-            tracing::debug!("got default sink name: {}", default_sink_name);
+            debug!("got default sink name: {}", default_sink_name);
 
             // Get initial state
             let introspect = context.borrow().introspect();

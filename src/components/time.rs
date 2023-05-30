@@ -6,6 +6,7 @@ use relm4::{
     AsyncComponentSender, Component, ComponentController, Controller,
 };
 use tokio::time;
+use tracing::debug;
 
 use crate::components::iconbutton::IconButtonModel;
 
@@ -42,7 +43,7 @@ impl SimpleAsyncComponent for TimeModel {
         root: Self::Root,
         sender: AsyncComponentSender<Self>,
     ) -> AsyncComponentParts<Self> {
-        tracing::debug!("initializing time component");
+        debug!("initializing time component");
         let mut interval = time::interval(Duration::from_secs(1));
         interval.set_missed_tick_behavior(time::MissedTickBehavior::Skip);
 

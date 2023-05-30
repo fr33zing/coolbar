@@ -3,6 +3,7 @@ use relm4::{
     gtk::{self, traits::BoxExt},
     AsyncComponentSender, Component, ComponentController, Controller,
 };
+use tracing::debug;
 
 use super::iconbutton::{IconButtonInit, IconButtonInput};
 use crate::components::iconbutton::IconButtonModel;
@@ -47,7 +48,7 @@ impl SimpleAsyncComponent for VolumeModel {
             }
         });
 
-        tracing::debug!("initializing volume component");
+        debug!("initializing volume component");
         let iconbutton = IconButtonModel::builder()
             .launch(IconButtonInit {
                 class: "volume".into(),

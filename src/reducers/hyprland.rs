@@ -8,6 +8,7 @@ use tokio::{
     net::UnixStream,
     task,
 };
+use tracing::{error, trace};
 
 pub static REDUCER: Reducer<HyprlandReducer> = Reducer::new();
 
@@ -60,7 +61,7 @@ impl Reducible for HyprlandReducer {
     fn init() -> Self {
         task::spawn(async move {
             if let Err(err) = connect_event_socket().await {
-                tracing::error!("hyprland event socket connection failed: {err}");
+                error!("hyprland event socket connection failed: {err}");
             }
         });
 
@@ -81,7 +82,7 @@ impl Reducible for HyprlandReducer {
             HyprlandInput::Refresh => {
                 task::spawn(async move {
                     if let Err(err) = refresh().await {
-                        tracing::error!("getting initial hyprland workspace state failed: {err}");
+                        error!("getting initial hyprland workspace state failed: {err}");
                     }
                 });
             }
@@ -174,9 +175,6 @@ async fn send(command: &[u8]) -> Result<Vec<u8>> {
         }
     }
 
-    // let s = String::from_utf8(buf.clone())?;
-    // tracing::info!({ s }, "read");
-
     Ok(buf)
 }
 
@@ -199,14 +197,14 @@ async fn connect_event_socket() -> Result<()> {
             }
             "activewindow" => {
                 let (class, title) = value.split_once(",").ok_or_else(malformed_err)?;
-                tracing::trace!({ class, title }, "active window changed");
+                trace!({ class, title }, "active window changed");
                 REDUCER.emit(HyprlandInput::ActiveWindow(class.into(), title.into()));
             }
             "closewindow" => {
                 REDUCER.emit(HyprlandInput::CloseWindow);
             }
             _ => {
-                tracing::trace!({ event = line }, "unhandled hyprland socket event");
+                trace!({ event = line }, "unhandled hyprland socket event");
             }
         }
     }

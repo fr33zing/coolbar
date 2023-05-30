@@ -17,6 +17,7 @@ use tokio::{
     task,
     time::{self, MissedTickBehavior},
 };
+use tracing::debug;
 
 use crate::reducers::hyprland::REDUCER as HYPRLAND;
 use crate::{config, reducers::hyprland::HyprlandReducer};
@@ -77,7 +78,7 @@ impl SimpleAsyncComponent for WorkspacesModel {
         root: Self::Root,
         sender: AsyncComponentSender<Self>,
     ) -> AsyncComponentParts<Self> {
-        tracing::debug!("initializing workspaces component");
+        debug!("initializing workspaces component");
 
         // Connect to Hyprland
         let (tx, rx) = relm4::channel::<WorkspacesInput>();
