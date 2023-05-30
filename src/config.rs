@@ -1,79 +1,61 @@
-// Catppuccin Macchiato
-// https://github.com/catppuccin
-#[allow(dead_code)]
-const ROSEWATER: &str = "#F4DBD6";
-#[allow(dead_code)]
-const FLAMINGO: &str = "#F0C6C6";
-#[allow(dead_code)]
-const PINK: &str = "#F5BDE6";
-#[allow(dead_code)]
-const MAUVE: &str = "#C6A0F6";
-#[allow(dead_code)]
-const RED: &str = "#ED8796";
-#[allow(dead_code)]
-const MAROON: &str = "#EE99A0";
-#[allow(dead_code)]
-const PEACH: &str = "#F5A97F";
-#[allow(dead_code)]
-const YELLOW: &str = "#EED49F";
-#[allow(dead_code)]
-const GREEN: &str = "#A6DA95";
-#[allow(dead_code)]
-const TEAL: &str = "#8BD5CA";
-#[allow(dead_code)]
-const SKY: &str = "#91D7E3";
-#[allow(dead_code)]
-const SAPPHIRE: &str = "#7DC4E4";
-#[allow(dead_code)]
-const BLUE: &str = "#8AADF4";
-#[allow(dead_code)]
-const LAVENDER: &str = "#B7BDF8";
-#[allow(dead_code)]
-const TEXT: &str = "#CAD3F5";
-#[allow(dead_code)]
-const SUBTEXT1: &str = "#B8C0E0";
-#[allow(dead_code)]
-const SUBTEXT0: &str = "#A5ADCB";
-#[allow(dead_code)]
-const OVERLAY2: &str = "#939AB7";
-#[allow(dead_code)]
-const OVERLAY1: &str = "#8087A2";
-#[allow(dead_code)]
-const OVERLAY0: &str = "#6E738D";
-#[allow(dead_code)]
-const SURFACE2: &str = "#5B6078";
-#[allow(dead_code)]
-const SURFACE1: &str = "#494D64";
-#[allow(dead_code)]
-const SURFACE0: &str = "#363A4F";
-#[allow(dead_code)]
-const BASE: &str = "#24273A";
-#[allow(dead_code)]
-const MANTLE: &str = "#1E2030";
-#[allow(dead_code)]
-const CRUST: &str = "#181926";
+use std::collections::BTreeMap;
 
-#[derive(Clone)]
+use gtk::{
+    gdk::prelude::DisplayExt,
+    prelude::{MonitorExt, SurfaceExt},
+    traits::NativeExt,
+};
+use relm4::RelmWidgetExt;
+use tokio::sync::OnceCell;
+use wildflower::Pattern;
+
+static CONFIG: OnceCell<Config> = OnceCell::const_new();
+
+#[derive(Debug, Clone)]
 pub struct Theme {
-    font_family: String,
-    font_size: String,
-    outer_padding: String,
-    background: String,
+    pub font_family: String,
+    /// Font size in px
+    pub font_size: u16,
+    pub outer_padding: String,
+    pub background: String,
 }
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
+pub struct Animations {
+    pub enable: bool,
+    pub target_fps: f64,
+}
+
+#[derive(Debug, Clone)]
+pub struct Monitor {
+    pub animations: Animations,
+}
+
+const DEFAULT_MONITOR: Monitor = Monitor {
+    animations: Animations {
+        enable: true,
+        target_fps: 60.0,
+    },
+};
+
+#[derive(Debug, Clone)]
 pub struct Config {
-    theme: Theme,
+    /// Per-monitor configuration indexed by the monitor's connector, e.g. "HDMI-1", "DP-1", or
+    /// "eDP1" depending how your monitor is connected. Accepts wildcards.
+    pub monitors: BTreeMap<String, Monitor>,
+
+    pub theme: Theme,
 }
 
 impl Default for Config {
     fn default() -> Self {
         Self {
+            monitors: BTreeMap::from([("*".into(), DEFAULT_MONITOR)]),
             theme: Theme {
                 font_family: "Iosevka".into(),
-                font_size: "16px".into(),
+                font_size: 16,
                 outer_padding: "20px".into(),
-                background: BASE.into(),
+                background: "#24273A".into(), // Catppuccin Macchiato, base
             },
         }
     }
@@ -83,11 +65,58 @@ impl Config {
     pub fn scss_variables(&self) -> String {
         let vars = [
             ("font_family", &self.theme.font_family),
-            ("font_size", &self.theme.font_size),
+            ("font_size", &format!("{}px", &self.theme.font_size)),
             ("outer_padding", &self.theme.outer_padding),
             ("background", &self.theme.background),
         ];
-
         vars.map(|t| format!("${}: {};", t.0, t.1)).join("\n")
+    }
+
+    pub fn monitor<T>(&self, widget: &T) -> &Monitor
+    where
+        T: RelmWidgetExt,
+    {
+        let surface = widget
+            .toplevel_window()
+            .expect("widget has no toplevel window")
+            .surface();
+        let connector = surface
+            .display()
+            .monitor_at_surface(&surface)
+            .expect("failed to get monitor")
+            .connector()
+            .expect("failed to get monitor description");
+        let connector = connector.as_str();
+
+        if let Some(monitor) = self.monitors.get(connector) {
+            monitor
+        } else {
+            let monitor = self
+                .monitors
+                .iter()
+                .find(|m| Pattern::new(m.0).matches(connector));
+            if let Some(monitor) = monitor {
+                monitor.1
+            } else {
+                &DEFAULT_MONITOR
+            }
+        }
+    }
+}
+
+pub fn load() {
+    if CONFIG.initialized() {
+        panic!("config was already loaded");
+    }
+
+    let config = Config::default();
+    // TODO load user config file
+    CONFIG.set(config).expect("failed to store config");
+}
+
+pub fn get() -> &'static Config {
+    match CONFIG.get() {
+        Some(config) => &config,
+        None => panic!("config was not loaded"),
     }
 }

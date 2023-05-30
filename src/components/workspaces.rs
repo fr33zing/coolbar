@@ -18,11 +18,9 @@ use tokio::{
     time::{self, MissedTickBehavior},
 };
 
-use crate::reducers::hyprland::HyprlandReducer;
 use crate::reducers::hyprland::REDUCER as HYPRLAND;
+use crate::{config, reducers::hyprland::HyprlandReducer};
 
-const TARGET_FPS: f64 = 100.0; // TODO get directly from config instead
-const WIDTH: i32 = 16 * 14; // TODO derive from config (font size) instead
 const FAST_INTERPOLATION: Duration = Duration::from_millis(150);
 const SLOW_INTERPOLATION: Duration = Duration::from_millis(400);
 
@@ -33,6 +31,8 @@ pub struct WorkspacesModel {
     handler: DrawHandler,
     width: f64,
     height: f64,
+    fast_interpolation: Duration,
+    slow_interpolation: Duration,
     dot_fast_x: f64,
     dot_fast_x_start: f64,
     dot_slow_x: f64,
@@ -63,7 +63,7 @@ impl SimpleAsyncComponent for WorkspacesModel {
 
             #[local_ref]
             area -> gtk::DrawingArea {
-                set_width_request: WIDTH,
+                set_width_request: (config::get().theme.font_size * 14).into(),
 
                 connect_resize[sender] => move |_, x, y| {
                     sender.input(WorkspacesInput::Resize((x, y)));
@@ -79,6 +79,7 @@ impl SimpleAsyncComponent for WorkspacesModel {
     ) -> AsyncComponentParts<Self> {
         tracing::debug!("initializing workspaces component");
 
+        // Connect to Hyprland
         let (tx, rx) = relm4::channel::<WorkspacesInput>();
         HYPRLAND.subscribe(&tx, |data| WorkspacesInput::Update(data.clone()));
         let sender_clone = sender.clone();
@@ -88,9 +89,12 @@ impl SimpleAsyncComponent for WorkspacesModel {
             }
         });
 
+        // Begin drawing
+        let monitor_config = config::get().monitor(&root);
         let sender_clone = sender.clone();
         task::spawn(async move {
-            let target_frame_time = Duration::from_micros((1.0 / TARGET_FPS * 1_000_000.0) as u64);
+            let target_fps = monitor_config.animations.target_fps;
+            let target_frame_time = Duration::from_micros((1.0 / target_fps * 1_000_000.0) as u64);
             let mut interval = time::interval(target_frame_time);
             interval.set_missed_tick_behavior(MissedTickBehavior::Skip);
 
@@ -101,12 +105,24 @@ impl SimpleAsyncComponent for WorkspacesModel {
         });
 
         let model = WorkspacesModel {
-            drawing: false,
+            drawing: true,
             last_update: Instant::now(),
             hyprland: None,
             handler: DrawHandler::new(),
             width: 0.0,
             height: 0.0,
+            fast_interpolation: if monitor_config.animations.enable {
+                FAST_INTERPOLATION
+            } else {
+                // HACK this is a bad way to disable animations, if they were disabled properly the
+                // draw loop thread could be avoided when animations are disabled.
+                Duration::from_secs(0)
+            },
+            slow_interpolation: if monitor_config.animations.enable {
+                SLOW_INTERPOLATION
+            } else {
+                Duration::from_secs(0)
+            },
             dot_fast_x: 0.0,
             dot_fast_x_start: 0.0,
             dot_slow_x: 0.0,
@@ -115,10 +131,11 @@ impl SimpleAsyncComponent for WorkspacesModel {
         let area = model.handler.drawing_area();
         let widgets = view_output!();
 
+        config::get().monitor(&root);
         AsyncComponentParts { model, widgets }
     }
 
-    async fn update(&mut self, message: Self::Input, _sender: AsyncComponentSender<Self>) {
+    async fn update(&mut self, message: Self::Input, sender: AsyncComponentSender<Self>) {
         match message {
             WorkspacesInput::Update(data) => {
                 self.last_update = Instant::now();
@@ -126,6 +143,8 @@ impl SimpleAsyncComponent for WorkspacesModel {
                 self.hyprland = Some(data);
                 self.dot_fast_x_start = self.dot_fast_x;
                 self.dot_slow_x_start = self.dot_slow_x;
+
+                sender.input(WorkspacesInput::Draw);
             }
             WorkspacesInput::Resize((x, y)) => {
                 self.width = x as f64;
@@ -173,7 +192,7 @@ impl WorkspacesModel {
 
         // Stop drawing if interpolation is finished
         let time = self.last_update.elapsed();
-        self.drawing = time < SLOW_INTERPOLATION;
+        self.drawing = time < self.slow_interpolation;
 
         // Get color from stylesheet
         let color = self.handler.drawing_area().color();
@@ -219,22 +238,22 @@ impl WorkspacesModel {
                 self.dot_slow_x = x_dest;
                 self.dot_slow_x_start = x_dest;
             } else {
-                self.dot_fast_x = if time < FAST_INTERPOLATION {
+                self.dot_fast_x = if time < self.fast_interpolation {
                     ease_out_sine(
                         time,
                         self.dot_fast_x_start,
                         x_dest - self.dot_fast_x_start,
-                        FAST_INTERPOLATION,
+                        self.fast_interpolation,
                     )
                 } else {
                     x_dest
                 };
-                self.dot_slow_x = if time < SLOW_INTERPOLATION {
+                self.dot_slow_x = if time < self.slow_interpolation {
                     ease_out_sine(
                         time,
                         self.dot_slow_x_start,
                         x_dest - self.dot_slow_x_start,
-                        SLOW_INTERPOLATION,
+                        self.slow_interpolation,
                     )
                 } else {
                     x_dest

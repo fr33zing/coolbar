@@ -158,6 +158,9 @@ fn init() -> Result<()> {
     tracing::trace!("initialized tracing");
     tracing::info!("initializing app");
 
+    tracing::debug!("loading config");
+    config::load();
+
     tracing::debug!("creating app");
     let app = gtk::Application::builder()
         .application_id(APPLICATION_ID)
