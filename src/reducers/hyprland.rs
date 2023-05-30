@@ -1,13 +1,11 @@
-use std::{collections::HashMap, env, io::Cursor};
+use std::{collections::HashMap, env};
 
 use anyhow::{anyhow, bail, Result};
 use relm4::{Reducer, Reducible};
 use serde::Deserialize;
 use tokio::{
-    io::{self, AsyncBufReadExt, AsyncReadExt, AsyncWriteExt, BufReader, Interest},
+    io::{self, AsyncBufReadExt, AsyncReadExt, AsyncWriteExt, BufReader},
     net::UnixStream,
-    process::Command,
-    sync::{Mutex, OnceCell},
     task,
 };
 
