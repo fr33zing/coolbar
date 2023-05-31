@@ -373,8 +373,6 @@ async fn connect_event_socket() -> Result<()> {
         let malformed_err = || anyhow!("malformed hyprland socket message: {line}");
         let (key, value) = line.split_once(">>").ok_or_else(malformed_err)?;
 
-        tracing::info!({key, value}, "event");
-
         match key {
             "workspace" | "openwindow" | "movewindow" => {
                 refresh().await?;
