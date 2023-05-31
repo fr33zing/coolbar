@@ -377,11 +377,9 @@ async fn connect_event_socket() -> Result<()> {
             "workspace" | "openwindow" | "movewindow" => {
                 refresh().await?;
             }
-            "activewindowv2" => {
-                if value != "," {
-                    let window_id = RawHyprlandWindow::fix_id(value.to_owned());
-                    REDUCER.emit(HyprlandInput::ActiveWindow(window_id));
-                }
+            "activewindowv2" if value != "," => {
+                let window_id = RawHyprlandWindow::fix_id(value.to_owned());
+                REDUCER.emit(HyprlandInput::ActiveWindow(window_id));
             }
             "closewindow" => {
                 let window_id = RawHyprlandWindow::fix_id(value.to_owned());
