@@ -1,13 +1,9 @@
 use std::collections::BTreeMap;
 
-use gtk::{
-    gdk::prelude::DisplayExt,
-    prelude::{MonitorExt, SurfaceExt},
-    traits::NativeExt,
-};
-use relm4::RelmWidgetExt;
 use tokio::sync::OnceCell;
 use wildflower::Pattern;
+
+use crate::util::UtilWidgetExt;
 
 static CONFIG: OnceCell<Config> = OnceCell::const_new();
 
@@ -74,27 +70,17 @@ impl Config {
 
     pub fn monitor<T>(&self, widget: &T) -> &Monitor
     where
-        T: RelmWidgetExt,
+        T: gtk::glib::IsA<gtk::Widget>,
     {
-        let surface = widget
-            .toplevel_window()
-            .expect("widget has no toplevel window")
-            .surface();
-        let connector = surface
-            .display()
-            .monitor_at_surface(&surface)
-            .expect("failed to get monitor")
-            .connector()
-            .expect("failed to get monitor description");
-        let connector = connector.as_str();
+        let connector = widget.monitor_connector();
 
-        if let Some(monitor) = self.monitors.get(connector) {
+        if let Some(monitor) = self.monitors.get(&connector) {
             monitor
         } else {
             let monitor = self
                 .monitors
                 .iter()
-                .find(|m| Pattern::new(m.0).matches(connector));
+                .find(|m| Pattern::new(m.0).matches(&connector));
             if let Some(monitor) = monitor {
                 monitor.1
             } else {

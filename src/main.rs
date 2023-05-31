@@ -13,6 +13,7 @@ use relm4::{
 use tracing::{debug, error, info, trace, Level};
 use tracing_subscriber::FmtSubscriber;
 
+pub mod data;
 pub mod dbus;
 
 mod components;

@@ -21,14 +21,21 @@ use tracing::debug;
 
 use crate::{
     config,
+    data::wayland_compositor::WaylandCompositor,
     reducers::hyprland::{HyprlandReducer, REDUCER as HYPRLAND},
+    util::UtilWidgetExt,
 };
 
 const FAST_INTERPOLATION: Duration = Duration::from_millis(150);
 const SLOW_INTERPOLATION: Duration = Duration::from_millis(400);
 
 pub struct WorkspacesModel {
+    /// Connector of the monitor on which this component exists.
+    monitor_connector: String,
+
+    /// Indicates whether or not the next frame should be drawn.
     drawing: bool,
+
     last_update: Instant,
     hyprland: Option<HyprlandReducer>,
     handler: DrawHandler,
@@ -108,6 +115,7 @@ impl SimpleAsyncComponent for WorkspacesModel {
         });
 
         let model = WorkspacesModel {
+            monitor_connector: root.monitor_connector(),
             drawing: true,
             last_update: Instant::now(),
             hyprland: None,
@@ -191,7 +199,7 @@ impl WorkspacesModel {
         let offset_per_workspace = spacing + thickness + diameter;
         let initial_offset = radius + (thickness / 2.0) + horizontal_margin;
         let y = self.height / 2.0;
-        let x = |i: i16| initial_offset + (offset_per_workspace * (i as f64));
+        let x = |i: usize| initial_offset + (offset_per_workspace * (i as f64));
 
         // Stop drawing if interpolation is finished
         let time = self.last_update.elapsed();
@@ -214,9 +222,9 @@ impl WorkspacesModel {
         {
             ctx.set_line_width(thickness);
 
-            for i in 0..(n_circles as i16) {
-                let empty = if let Some(ws) = hyprland.workspaces.get(&i) {
-                    ws.windows == 0
+            for i in 0..(n_circles as usize) {
+                let empty = if let Some(ws) = hyprland.workspaces().get(&i) {
+                    hyprland.workspace_is_empty(ws)
                 } else {
                     true
                 };
@@ -230,8 +238,20 @@ impl WorkspacesModel {
 
         // Active workspace
         {
+            let monitor = hyprland
+                .monitors()
+                .values()
+                .find(|m| m.connector == self.monitor_connector);
+
+            let Some(monitor) = monitor else {
+                return;
+            };
+            let Some(active_workspace) = hyprland.active_workspace(monitor) else {
+                return;
+            };
+
+            let x_dest = x(active_workspace.id);
             let radius = radius - thickness * 1.5;
-            let x_dest = x(hyprland.active_workspace);
 
             if self.dot_slow_x < x(0) {
                 // Set initial positions to prevent dot coming in from the left side when the

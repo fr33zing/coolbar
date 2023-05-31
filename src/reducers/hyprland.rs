@@ -1,6 +1,6 @@
-use std::{collections::HashMap, env};
+use std::{collections::BTreeMap, env};
 
-use anyhow::{anyhow, bail, Result};
+use anyhow::{anyhow, Result};
 use relm4::{Reducer, Reducible};
 use serde::Deserialize;
 use tokio::{
@@ -10,49 +10,257 @@ use tokio::{
 };
 use tracing::{error, trace};
 
+use crate::data::wayland_compositor::{
+    MonitorConnector, WaylandCompositor, WaylandCompositorMonitor, WaylandCompositorWindow,
+    WaylandCompositorWorkspace, WindowId, WorkspaceId,
+};
+
 pub static REDUCER: Reducer<HyprlandReducer> = Reducer::new();
 
 #[derive(Debug, Clone, Deserialize)]
-pub struct HyprctlMonitorActiveWorkspace {
-    pub id: i16,
-    pub name: String,
+pub struct HyprlandWrappedWorkspaceId {
+    // Use isize because Hyprland uses ID -99 for the special workspace.
+    pub id: isize,
 }
 
 #[derive(Debug, Clone, Deserialize)]
-pub struct HyprctlMonitor {
-    pub id: i16,
-    pub name: String,
-    pub focused: bool,
+pub struct RawHyprlandMonitor {
+    #[serde(rename = "name")]
+    pub connector: String,
+
+    #[serde(rename = "focused")]
+    pub active: bool,
+
     #[serde(rename = "activeWorkspace")]
-    pub active_workspace: HyprctlMonitorActiveWorkspace,
+    pub active_workspace: HyprlandWrappedWorkspaceId,
 }
 
-#[derive(Debug, Clone, Deserialize)]
-pub struct HyprctlWorkspace {
-    pub id: i16,
-    pub name: String,
-    pub monitor: String,
-    pub windows: i16,
-}
+impl RawHyprlandMonitor {
+    fn postprocess(raw: Vec<RawHyprlandMonitor>) -> BTreeMap<MonitorConnector, HyprlandMonitor> {
+        let mut monitors = BTreeMap::new();
 
-type HyprctlMonitorsResponse = Vec<HyprctlMonitor>;
-type HyprctlWorkspacesResponse = Vec<HyprctlWorkspace>;
+        for raw_monitor in raw {
+            let connector = raw_monitor.connector;
+            let processed_monitor = HyprlandMonitor {
+                connector: connector.clone(),
+                active: raw_monitor.active,
+                active_workspace_id: RawHyprlandWorkspace::fix_id(raw_monitor.active_workspace.id),
+            };
+            monitors.insert(connector, processed_monitor);
+        }
+
+        monitors
+    }
+}
 
 #[derive(Debug, Clone)]
+pub struct HyprlandMonitor {
+    pub connector: MonitorConnector,
+    pub active: bool,
+    pub active_workspace_id: WorkspaceId,
+}
+
+impl WaylandCompositorMonitor for HyprlandMonitor {
+    fn connector(&self) -> &str {
+        &self.connector
+    }
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct RawHyprlandWorkspace {
+    pub id: isize,
+
+    pub name: String,
+
+    #[serde(rename = "monitor")]
+    pub monitor_connector: String,
+
+    #[serde(rename = "lastwindow")]
+    pub active_window_id: String,
+}
+
+impl RawHyprlandWorkspace {
+    /// Converts a 1-based isize to a 0-based usize
+    fn fix_id(one_based_id: isize) -> usize {
+        (one_based_id as usize) - 1
+    }
+
+    fn postprocess(raw: Vec<RawHyprlandWorkspace>) -> BTreeMap<WorkspaceId, HyprlandWorkspace> {
+        let mut workspaces = BTreeMap::new();
+
+        for raw_workspace in raw {
+            // Filter special workspace
+            if raw_workspace.id.is_negative() {
+                continue;
+            }
+
+            let processed_workspace = HyprlandWorkspace {
+                id: Self::fix_id(raw_workspace.id),
+                name: raw_workspace.name,
+                monitor_connector: raw_workspace.monitor_connector,
+                active_window_id: RawHyprlandWindow::fix_id_prefixed(
+                    raw_workspace.active_window_id,
+                ),
+            };
+
+            workspaces.insert(processed_workspace.id, processed_workspace);
+        }
+
+        workspaces
+    }
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct HyprlandWorkspace {
+    pub id: WorkspaceId,
+    pub name: String,
+    pub monitor_connector: String,
+    pub active_window_id: WindowId,
+}
+
+impl WaylandCompositorWorkspace for HyprlandWorkspace {
+    fn name(&self) -> &str {
+        &self.name
+    }
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct RawHyprlandWindow {
+    #[serde(rename = "address")]
+    pub id: String,
+    pub class: String,
+    pub title: String,
+    pub workspace: HyprlandWrappedWorkspaceId,
+}
+
+impl RawHyprlandWindow {
+    fn fix_id_prefixed(prefixed_hex_id: String) -> WindowId {
+        usize::from_str_radix(&prefixed_hex_id[2..], 16).expect("failed to parse window id hex")
+    }
+
+    fn fix_id(hex_id: String) -> WindowId {
+        usize::from_str_radix(&hex_id, 16).expect("failed to parse window id hex")
+    }
+
+    fn postprocess(raw: Vec<RawHyprlandWindow>) -> BTreeMap<WindowId, HyprlandWindow> {
+        let mut windows = BTreeMap::new();
+
+        for raw_window in raw {
+            // Filter windows on special workspace
+            if raw_window.workspace.id.is_negative() {
+                continue;
+            }
+
+            let processed_window = HyprlandWindow {
+                id: Self::fix_id_prefixed(raw_window.id),
+                class: raw_window.class,
+                title: raw_window.title,
+                workspace_id: RawHyprlandWorkspace::fix_id(raw_window.workspace.id),
+            };
+
+            windows.insert(processed_window.id, processed_window);
+        }
+
+        windows
+    }
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct HyprlandWindow {
+    pub id: WindowId,
+    pub class: String,
+    pub title: String,
+    pub workspace_id: WorkspaceId,
+}
+
+impl WaylandCompositorWindow for HyprlandWindow {
+    fn class(&self) -> &str {
+        &self.class
+    }
+
+    fn title(&self) -> &str {
+        &self.title
+    }
+}
+
+#[derive(Debug, Clone, Default)]
 pub struct HyprlandReducer {
-    pub monitors: HyprctlMonitorsResponse,
-    pub workspaces: HashMap<i16, HyprctlWorkspace>,
-    pub active_monitor: u16,
-    pub active_workspace: i16,
-    pub active_window_app: String,
-    pub active_window_title: String,
+    initialized: bool,
+    monitors: BTreeMap<MonitorConnector, HyprlandMonitor>,
+    workspaces: BTreeMap<WorkspaceId, HyprlandWorkspace>,
+    windows: BTreeMap<WindowId, HyprlandWindow>,
+    active_monitor_connector: MonitorConnector,
+    active_workspace_id: WorkspaceId,
+    active_window_ids: BTreeMap<WorkspaceId, WindowId>,
+}
+
+impl WaylandCompositor for HyprlandReducer {
+    type Monitor = HyprlandMonitor;
+    type Workspace = HyprlandWorkspace;
+    type Window = HyprlandWindow;
+
+    fn monitors(&self) -> &BTreeMap<MonitorConnector, HyprlandMonitor> {
+        &self.monitors
+    }
+
+    fn active_monitor(&self) -> &Self::Monitor {
+        self.monitors
+            .get(&self.active_monitor_connector)
+            .expect("active monitor not found")
+    }
+
+    fn monitor_is_empty(&self, _monitor: &Self::Monitor) -> bool {
+        false // TODO verify correctness
+    }
+
+    fn workspaces(&self) -> &BTreeMap<usize, Self::Workspace> {
+        &self.workspaces
+    }
+
+    fn active_workspace(&self, monitor: &Self::Monitor) -> Option<&Self::Workspace> {
+        self.workspaces.get(&monitor.active_workspace_id)
+    }
+
+    fn workspace_is_empty(&self, workspace: &Self::Workspace) -> bool {
+        self.windows
+            .values()
+            .filter(|w| w.workspace_id == workspace.id)
+            .count()
+            == 0
+    }
+
+    fn workspaces_in_monitor(&self, monitor: &Self::Monitor) -> Vec<&Self::Workspace> {
+        self.workspaces
+            .values()
+            .filter(|ws| ws.monitor_connector == monitor.connector)
+            .collect()
+    }
+
+    fn windows(&self) -> &BTreeMap<usize, Self::Window> {
+        &self.windows
+    }
+
+    fn active_window(&self, workspace: &Self::Workspace) -> Option<&Self::Window> {
+        self.windows.get(&workspace.active_window_id)
+    }
+
+    fn windows_in_workspace(&self, workspace: &Self::Workspace) -> Vec<&Self::Window> {
+        self.windows
+            .values()
+            .filter(|w| w.workspace_id == workspace.id)
+            .collect()
+    }
 }
 
 pub enum HyprlandInput {
-    Refresh,
-    ActiveWorkspace(HyprctlMonitorsResponse, HyprctlWorkspacesResponse, i16),
-    ActiveWindow(String, String),
-    CloseWindow,
+    RequestRefresh,
+    Refresh(
+        BTreeMap<MonitorConnector, HyprlandMonitor>,
+        BTreeMap<WorkspaceId, HyprlandWorkspace>,
+        BTreeMap<WindowId, HyprlandWindow>,
+    ),
+    CloseWindow(WindowId),
+    ActiveWindow(usize),
 }
 
 impl Reducible for HyprlandReducer {
@@ -64,91 +272,66 @@ impl Reducible for HyprlandReducer {
                 error!("hyprland event socket connection failed: {err}");
             }
         });
-
-        REDUCER.emit(HyprlandInput::Refresh);
-
-        Self {
-            monitors: Default::default(),
-            workspaces: Default::default(),
-            active_monitor: 0,
-            active_workspace: 0,
-            active_window_app: "?".into(),
-            active_window_title: "?".into(),
-        }
+        REDUCER.emit(HyprlandInput::RequestRefresh);
+        Self::default()
     }
 
     fn reduce(&mut self, input: Self::Input) -> bool {
         match input {
-            HyprlandInput::Refresh => {
+            HyprlandInput::RequestRefresh => {
                 task::spawn(async move {
                     if let Err(err) = refresh().await {
                         error!("getting initial hyprland workspace state failed: {err}");
                     }
                 });
             }
-            HyprlandInput::ActiveWorkspace(monitors, workspaces, active_workspace) => {
+            HyprlandInput::Refresh(monitors, workspaces, windows) => {
                 self.monitors = monitors;
-                self.workspaces = workspaces
-                    .iter()
-                    .map(|ws| (ws.id - 1, ws.to_owned()))
+                self.workspaces = workspaces;
+                self.windows = windows;
+                self.active_monitor_connector = self
+                    .monitors
+                    .values()
+                    .find(|m| m.active)
+                    .expect("no active monitor found")
+                    .connector
+                    .clone();
+                self.active_workspace_id = self.active_monitor().active_workspace_id;
+                self.active_window_ids = self
+                    .workspaces
+                    .values()
+                    .map(|ws| (ws.id, ws.active_window_id.clone()))
                     .collect();
-                self.active_workspace = active_workspace - 1;
+                self.initialized = true;
             }
-            HyprlandInput::ActiveWindow(class, title) => {
-                self.active_window_app = class;
-                self.active_window_title = title;
+            HyprlandInput::ActiveWindow(window_id) if self.initialized => {
+                self.active_window_ids
+                    .insert(self.active_workspace_id, window_id);
+            }
+            HyprlandInput::CloseWindow(window_id) if self.initialized => {
+                self.windows.remove(&window_id);
+            }
 
-                REDUCER.emit(HyprlandInput::Refresh);
-            }
-            HyprlandInput::CloseWindow => {
-                REDUCER.emit(HyprlandInput::Refresh);
-            }
+            _ => {}
         }
         true
     }
 }
 
-async fn monitors() -> Result<HyprctlMonitorsResponse> {
-    let json = send(b"[j]/monitors").await?;
-    let response = serde_json::from_slice::<HyprctlMonitorsResponse>(&json)?;
-    Ok(response)
-}
-
-async fn workspaces() -> Result<HyprctlWorkspacesResponse> {
-    let json = send(b"[j]/workspaces").await?;
-    let response = serde_json::from_slice::<HyprctlWorkspacesResponse>(&json)?;
-    Ok(response)
-}
-
-async fn active_monitor() -> Result<i16> {
-    // TODO ask gtk
-    Ok(0)
-}
-
 async fn refresh() -> Result<()> {
-    let (monitors, workspaces) = tokio::try_join!(monitors(), workspaces())?;
-    let active_monitor = active_monitor().await?;
-    let active_monitor = monitors.iter().find(|m| m.id == active_monitor);
-    let Some(active_monitor) = active_monitor else {
-        bail!("failed to determine active monitor");
-    };
-    let active_workspace = active_monitor.active_workspace.id;
+    let monitors = send(b"[j]/monitors").await?;
+    let monitors: Vec<RawHyprlandMonitor> = serde_json::from_slice(&monitors)?;
+    let monitors = RawHyprlandMonitor::postprocess(monitors);
 
-    REDUCER.emit(HyprlandInput::ActiveWorkspace(
-        monitors,
-        workspaces,
-        active_workspace,
-    ));
-    Ok(())
-}
+    let workspaces = send(b"[j]/workspaces").await?;
+    let workspaces: Vec<RawHyprlandWorkspace> = serde_json::from_slice(&workspaces)?;
+    let workspaces = RawHyprlandWorkspace::postprocess(workspaces);
 
-async fn update(active_workspace: i16) -> Result<()> {
-    let (monitors, workspaces) = tokio::try_join!(monitors(), workspaces())?;
-    REDUCER.emit(HyprlandInput::ActiveWorkspace(
-        monitors,
-        workspaces,
-        active_workspace,
-    ));
+    let windows = send(b"[j]/clients").await?;
+    let windows: Vec<RawHyprlandWindow> = serde_json::from_slice(&windows)?;
+    let windows = RawHyprlandWindow::postprocess(windows);
+
+    REDUCER.emit(HyprlandInput::Refresh(monitors, workspaces, windows));
     Ok(())
 }
 
@@ -190,21 +373,24 @@ async fn connect_event_socket() -> Result<()> {
         let malformed_err = || anyhow!("malformed hyprland socket message: {line}");
         let (key, value) = line.split_once(">>").ok_or_else(malformed_err)?;
 
+        tracing::info!({key, value}, "event");
+
         match key {
-            "workspace" => {
-                let active_workspace = value.parse::<i16>()?;
-                update(active_workspace).await?;
+            "workspace" | "openwindow" | "movewindow" => {
+                refresh().await?;
             }
-            "activewindow" => {
-                let (class, title) = value.split_once(",").ok_or_else(malformed_err)?;
-                trace!({ class, title }, "active window changed");
-                REDUCER.emit(HyprlandInput::ActiveWindow(class.into(), title.into()));
+            "activewindowv2" => {
+                if value != "," {
+                    let window_id = RawHyprlandWindow::fix_id(value.to_owned());
+                    REDUCER.emit(HyprlandInput::ActiveWindow(window_id));
+                }
             }
             "closewindow" => {
-                REDUCER.emit(HyprlandInput::CloseWindow);
+                let window_id = RawHyprlandWindow::fix_id(value.to_owned());
+                REDUCER.emit(HyprlandInput::CloseWindow(window_id));
             }
             _ => {
-                trace!({ event = line }, "unhandled hyprland socket event");
+                trace!({key, value}, "unhandled hyprland socket event");
             }
         }
     }
