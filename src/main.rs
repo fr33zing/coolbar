@@ -1,6 +1,7 @@
-use std::{io::Write, sync::OnceLock, time::Instant};
+use std::{sync::OnceLock, time::Instant};
 
 use anyhow::{Error, Result};
+use clap::Parser;
 use relm4::{
     gtk::{self, prelude::ApplicationExt, traits::WidgetExt},
     Component, ComponentParts, ComponentSender, RelmApp,
@@ -11,6 +12,7 @@ use tracing_subscriber::FmtSubscriber;
 pub mod data;
 pub mod dbus;
 
+pub mod args;
 mod components;
 mod config;
 mod icons;
@@ -19,7 +21,6 @@ mod reducers;
 mod util;
 
 use components::{AppModel, ConfigWidgetExt};
-use config::Config;
 
 const APPLICATION_ID: &str = "none.coolbar";
 
@@ -144,6 +145,14 @@ fn startup(app: &gtk::Application) -> Result<()> {
 }
 
 fn init() -> Result<()> {
+    debug!("parsing command line arguments");
+    let args = args::Args::parse();
+    if args.print_default_config {
+        let default_config = serde_yaml::to_string(&config::Config::default())?;
+        println!("{default_config}");
+        return Ok(());
+    }
+
     init_tracing();
     trace!("initialized tracing");
     info!("initializing app");
