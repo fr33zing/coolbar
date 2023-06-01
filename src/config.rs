@@ -4,12 +4,18 @@ use serde::{Deserialize, Serialize};
 use tokio::sync::OnceCell;
 use wildflower::Pattern;
 
-use crate::{components::ConfigComponent, icons, util::UtilWidgetExt};
+use crate::{
+    components::{
+        razer_mouse::RazerMouseInit, time::TimeInit, workspaces::WorkspacesInit, ConfigComponent,
+    },
+    icons,
+    util::UtilWidgetExt,
+};
 
 pub static CONFIG: OnceCell<Config> = OnceCell::const_new();
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(tag = "type")]
+#[serde(tag = "type", rename_all = "snake_case")]
 pub enum Icon {
     Literal { text: String },
     Material { id: String },
@@ -84,13 +90,13 @@ impl Default for Config {
             layout: Layout {
                 left: vec!["workspaces".into()],
                 center: vec!["time".into()],
-                right: vec![],
+                right: vec!["razer_mouse".into()],
             },
             components: BTreeMap::from([
                 (
                     "workspaces".into(),
                     ConfigComponent::workspaces {
-                        init: crate::components::workspaces::WorkspacesInit {
+                        init: WorkspacesInit {
                             compositor: "hyprland".into(),
                         },
                     },
@@ -98,7 +104,7 @@ impl Default for Config {
                 (
                     "time".into(),
                     ConfigComponent::time {
-                        init: crate::components::time::TimeInit {
+                        init: TimeInit {
                             icon: Icon::Material {
                                 id: "schedule".into(),
                             },
