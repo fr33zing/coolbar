@@ -29,7 +29,7 @@ pub enum RazerMouseOutput {}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RazerMouseInit {
-    icon: Icon,
+    pub icon: Icon,
 }
 
 #[relm4::component(async, pub)]
@@ -46,10 +46,12 @@ impl SimpleAsyncComponent for RazerMouseModel {
     }
 
     async fn init(
-        _init: Self::Init,
+        init: Self::Init,
         root: Self::Root,
         sender: AsyncComponentSender<Self>,
     ) -> AsyncComponentParts<Self> {
+        debug!("initializing razer mouse component");
+
         let (tx, rx) = relm4::channel();
         OPENRAZER.subscribe(&tx, |msg| {
             RazerMouseInput::Update(msg.mouse_detected, msg.mouse_battery)
@@ -60,11 +62,10 @@ impl SimpleAsyncComponent for RazerMouseModel {
             }
         });
 
-        debug!("initializing razer mouse component");
         let iconbutton = IconButtonModel::builder()
             .launch(IconButtonInit {
                 class: "mouse".into(),
-                icon: "mouse".into(),
+                icon: init.icon,
                 text: "???%".into(),
                 dim: true,
             })
@@ -85,8 +86,12 @@ impl SimpleAsyncComponent for RazerMouseModel {
                 } else {
                     "Not detected".into()
                 };
-                self.iconbutton
-                    .emit(IconButtonInput::Update("mouse".into(), text, !detected));
+
+                self.iconbutton.emit(IconButtonInput {
+                    icon: None,
+                    text: Some(text),
+                    dim: Some(!detected),
+                });
             }
         };
     }

@@ -1,4 +1,4 @@
-use std::{sync::OnceLock, time::Instant};
+use std::{io::Write, sync::OnceLock, time::Instant};
 
 use anyhow::{Error, Result};
 use relm4::{
@@ -111,10 +111,10 @@ fn initialize_window(window: &gtk::Window) {
     debug!("window initialized");
 }
 
-fn load_styles(config: &Config) {
+fn load_styles() {
     let scss = format!(
         "{}\n{}",
-        config.scss_variables(),
+        config::get().scss_variables(),
         include_str!("styles.scss")
     );
     let css = rsass::compile_scss(scss.as_bytes(), Default::default()).expect("valid scss");
@@ -132,11 +132,8 @@ fn init_tracing() {
 }
 
 fn startup(app: &gtk::Application) -> Result<()> {
-    debug!("loading default config");
-    let config = Config::default();
-
     debug!("loading default styles");
-    load_styles(&config);
+    load_styles();
 
     debug!("passing dbus connection to reducers");
     if let Some(dbus) = app.dbus_connection() {
@@ -153,6 +150,9 @@ fn init() -> Result<()> {
 
     debug!("loading config");
     config::load();
+
+    debug!("loading icon codepoints");
+    icons::load_codepoints();
 
     debug!("creating app");
     let app = gtk::Application::builder()

@@ -60,7 +60,9 @@ impl SimpleAsyncComponent for VolumeModel {
         let iconbutton = IconButtonModel::builder()
             .launch(IconButtonInit {
                 class: "volume".into(),
-                icon: "volume_off".into(),
+                icon: Icon::Material {
+                    id: "volume_off".into(),
+                },
                 text: "???%".into(),
                 dim: true,
             })
@@ -78,8 +80,11 @@ impl SimpleAsyncComponent for VolumeModel {
                 let icon = if muted { "volume_off" } else { "volume_up" };
                 let text = util::pad_with_dim_leading_zeros(format!("{volume}%"), 4);
 
-                self.iconbutton
-                    .emit(IconButtonInput::Update(icon.into(), text, muted));
+                self.iconbutton.emit(IconButtonInput {
+                    icon: Some(Icon::Material { id: icon.into() }),
+                    text: Some(text),
+                    dim: Some(muted),
+                });
             }
         };
     }

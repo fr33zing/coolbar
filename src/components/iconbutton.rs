@@ -2,7 +2,7 @@ use relm4::gtk::traits::WidgetExt;
 use relm4::Component;
 use relm4::{gtk, ComponentParts, ComponentSender};
 
-use crate::icons::material_design_icon;
+use crate::config::Icon;
 use crate::util;
 
 pub struct IconButtonModel {
@@ -12,18 +12,17 @@ pub struct IconButtonModel {
 }
 
 #[derive(Debug)]
-pub enum IconButtonInput {
-    UpdateText(String),
-    UpdateIcon(String),
-    Update(String, String, bool),
-    Dim(bool),
+pub struct IconButtonInput {
+    pub icon: Option<Icon>,
+    pub text: Option<String>,
+    pub dim: Option<bool>,
 }
 
 #[derive(Debug)]
 pub enum IconButtonOutput {}
 
 pub struct IconButtonInit {
-    pub icon: String,
+    pub icon: Icon,
     pub text: String,
     pub class: String,
     pub dim: bool,
@@ -46,7 +45,7 @@ impl Component for IconButtonModel {
                 gtk::Label {
                     set_css_classes: &["icon"],
                     #[watch]
-                    set_markup: &util::dim_if(material_design_icon(&model.icon), model.dim)
+                    set_markup: &util::dim_if(model.icon.to_string(), model.dim)
                 },
                 gtk::Label {
                     #[watch]
@@ -62,7 +61,7 @@ impl Component for IconButtonModel {
         _sender: ComponentSender<Self>,
     ) -> ComponentParts<Self> {
         let model = IconButtonModel {
-            icon: init.icon,
+            icon: init.icon.to_string(),
             text: init.text,
             dim: init.dim,
         };
@@ -71,15 +70,14 @@ impl Component for IconButtonModel {
     }
 
     fn update(&mut self, message: Self::Input, _sender: ComponentSender<Self>, _root: &Self::Root) {
-        match message {
-            IconButtonInput::UpdateIcon(icon) => self.icon = icon,
-            IconButtonInput::UpdateText(text) => self.text = text,
-            IconButtonInput::Update(icon, text, dim) => {
-                self.icon = icon;
-                self.text = text;
-                self.dim = dim;
-            }
-            IconButtonInput::Dim(dim) => self.dim = dim,
-        };
+        if let Some(icon) = message.icon {
+            self.icon = icon.to_string();
+        }
+        if let Some(text) = message.text {
+            self.text = text;
+        }
+        if let Some(dim) = message.dim {
+            self.dim = dim;
+        }
     }
 }

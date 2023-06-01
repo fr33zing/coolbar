@@ -50,7 +50,7 @@ impl SimpleAsyncComponent for TimeModel {
     }
 
     async fn init(
-        _init: Self::Init,
+        init: Self::Init,
         root: Self::Root,
         sender: AsyncComponentSender<Self>,
     ) -> AsyncComponentParts<Self> {
@@ -61,7 +61,7 @@ impl SimpleAsyncComponent for TimeModel {
         let iconbutton = IconButtonModel::builder()
             .launch(IconButtonInit {
                 class: "time".into(),
-                icon: "schedule".into(),
+                icon: init.icon,
                 text: format_time(),
                 dim: false,
             })
@@ -81,8 +81,11 @@ impl SimpleAsyncComponent for TimeModel {
     async fn update(&mut self, message: Self::Input, sender: AsyncComponentSender<Self>) {
         match message {
             TimeInput::Tick => {
-                self.iconbutton
-                    .emit(IconButtonInput::UpdateText(format_time()));
+                self.iconbutton.emit(IconButtonInput {
+                    icon: None,
+                    text: Some(format_time()),
+                    dim: None,
+                });
                 self.interval.tick().await;
                 sender.input(TimeInput::Tick);
             }
