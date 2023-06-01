@@ -5,10 +5,14 @@ use relm4::{
     gtk::{self, traits::BoxExt},
     AsyncComponentSender, Component, ComponentController, Controller,
 };
+use serde::{Deserialize, Serialize};
 use tokio::time;
 use tracing::debug;
 
-use crate::components::iconbutton::{IconButtonInit, IconButtonModel};
+use crate::{
+    components::iconbutton::{IconButtonInit, IconButtonModel},
+    config::Icon,
+};
 
 use super::iconbutton::IconButtonInput;
 
@@ -25,11 +29,18 @@ pub enum TimeInput {
 #[derive(Debug)]
 pub enum Output {}
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TimeInit {
+    pub icon: Icon,
+    /// See [`chrono::format::strftime`] for supported escape sequences.
+    pub format: String,
+}
+
 #[relm4::component(async, pub)]
 impl SimpleAsyncComponent for TimeModel {
     type Input = TimeInput;
     type Output = Output;
-    type Init = ();
+    type Init = TimeInit;
 
     view! {
         #[root]

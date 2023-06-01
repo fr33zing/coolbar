@@ -13,6 +13,7 @@ use relm4::{
     },
     AsyncComponentSender,
 };
+use serde::{Deserialize, Serialize};
 use tokio::{
     task,
     time::{self, MissedTickBehavior},
@@ -57,13 +58,18 @@ pub enum WorkspacesInput {
 }
 
 #[derive(Debug)]
-pub enum Output {}
+pub enum WorkspacesOutput {}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct WorkspacesInit {
+    pub compositor: String,
+}
 
 #[relm4::component(async, pub)]
 impl SimpleAsyncComponent for WorkspacesModel {
     type Input = WorkspacesInput;
-    type Output = Output;
-    type Init = ();
+    type Output = WorkspacesOutput;
+    type Init = WorkspacesInit;
 
     view! {
         #[root]
@@ -73,7 +79,7 @@ impl SimpleAsyncComponent for WorkspacesModel {
 
             #[local_ref]
             area -> gtk::DrawingArea {
-                set_width_request: (config::get().theme.font_size * 14).into(),
+                set_width_request: (config::get().theme.font_size_px * 14).into(),
 
                 connect_resize[sender] => move |_, x, y| {
                     sender.input(WorkspacesInput::Resize((x, y)));

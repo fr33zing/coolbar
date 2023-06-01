@@ -3,10 +3,12 @@ use relm4::{
     gtk::{self, traits::BoxExt},
     AsyncComponentSender, Component, ComponentController, Controller,
 };
+use serde::{Deserialize, Serialize};
 use tracing::debug;
 
 use crate::{
     components::iconbutton::{IconButtonInit, IconButtonInput, IconButtonModel},
+    config::Icon,
     reducers::pulseaudio::REDUCER as PULSEAUDIO,
     util,
 };
@@ -23,11 +25,16 @@ pub enum VolumeInput {
 #[derive(Debug)]
 pub enum VolumeOutput {}
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct VolumeInit {
+    icon: Icon,
+}
+
 #[relm4::component(async, pub)]
 impl SimpleAsyncComponent for VolumeModel {
     type Input = VolumeInput;
     type Output = VolumeOutput;
-    type Init = ();
+    type Init = VolumeInit;
 
     view! {
         #[root]

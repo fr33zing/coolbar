@@ -3,10 +3,12 @@ use relm4::{
     gtk::{self, traits::BoxExt},
     AsyncComponentSender, Component, ComponentController, Controller,
 };
+use serde::{Deserialize, Serialize};
 use tracing::debug;
 
 use crate::{
     components::iconbutton::{IconButtonInit, IconButtonModel},
+    config::Icon,
     reducers::openrazer::REDUCER as OPENRAZER,
     util,
 };
@@ -25,11 +27,16 @@ pub enum RazerMouseInput {
 #[derive(Debug)]
 pub enum RazerMouseOutput {}
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RazerMouseInit {
+    icon: Icon,
+}
+
 #[relm4::component(async, pub)]
 impl SimpleAsyncComponent for RazerMouseModel {
     type Input = RazerMouseInput;
     type Output = RazerMouseOutput;
-    type Init = ();
+    type Init = RazerMouseInit;
 
     view! {
         #[root]

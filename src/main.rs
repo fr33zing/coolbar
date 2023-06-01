@@ -2,15 +2,10 @@ use std::{sync::OnceLock, time::Instant};
 
 use anyhow::{Error, Result};
 use relm4::{
-    component::{AsyncComponent, AsyncComponentController, AsyncController},
-    gtk::{
-        self,
-        prelude::ApplicationExt,
-        traits::{BoxExt, WidgetExt},
-    },
+    gtk::{self, prelude::ApplicationExt, traits::WidgetExt},
     Component, ComponentParts, ComponentSender, RelmApp,
 };
-use tracing::{debug, error, info, trace, Level};
+use tracing::{debug, error, info, trace, warn, Level};
 use tracing_subscriber::FmtSubscriber;
 
 pub mod data;
@@ -19,31 +14,20 @@ pub mod dbus;
 mod components;
 mod config;
 mod icons;
+pub mod macros;
 mod reducers;
 mod util;
 
-use components::{
-    razer_mouse::RazerMouseModel, time::TimeModel, volume::VolumeModel, workspaces::WorkspacesModel,
-};
+use components::{AppModel, ConfigWidgetExt};
 use config::Config;
 
 const APPLICATION_ID: &str = "none.coolbar";
 
 static START_INSTANT: OnceLock<Instant> = OnceLock::new();
 
-struct AppModel {
-    workspaces: AsyncController<WorkspacesModel>,
-    razer_mouse: AsyncController<RazerMouseModel>,
-    time: AsyncController<TimeModel>,
-    volume: AsyncController<VolumeModel>,
-}
-
-#[derive(Debug)]
-enum AppInput {}
-
-#[relm4::component]
+#[relm4::component(pub)]
 impl Component for AppModel {
-    type Input = AppInput;
+    type Input = ();
     type Output = ();
     type CommandOutput = ();
     type Init = ();
@@ -56,23 +40,20 @@ impl Component for AppModel {
                 set_css_classes: &["bar"],
 
                 #[wrap(Some)]
+                #[name = "left"]
                 set_start_widget = &gtk::Box {
                     set_halign: gtk::Align::Start,
-
-                    append = model.workspaces.widget(),
                 },
 
                 #[wrap(Some)]
+                #[name = "center"]
                 set_center_widget = &gtk::Box {
-                    append = model.time.widget(),
                 },
 
                 #[wrap(Some)]
+                #[name = "right"]
                 set_end_widget = &gtk::Box {
                     set_halign: gtk::Align::End,
-
-                    append = model.razer_mouse.widget(),
-                    append = model.volume.widget(),
                 }
             }
         }
@@ -86,23 +67,34 @@ impl Component for AppModel {
         debug!("initializing root component");
         initialize_window(root);
 
-        let workspaces = WorkspacesModel::builder().launch(()).detach();
-        let razer_mouse = RazerMouseModel::builder().launch(()).detach();
-        let time = TimeModel::builder().launch(()).detach();
-        let volume = VolumeModel::builder().launch(()).detach();
-
-        let model = AppModel {
-            workspaces,
-            razer_mouse,
-            time,
-            volume,
-        };
+        let mut model = AppModel::default();
         let widgets = view_output!();
+
+        generate_components_from_config(&mut model, &widgets);
 
         let took_micros = START_INSTANT.get().unwrap().elapsed().as_micros();
         info!({ took_micros }, "finished initializing app");
 
         ComponentParts { model, widgets }
+    }
+}
+
+fn generate_components_from_config(app_model: &mut AppModel, widgets: &AppModelWidgets) {
+    let config = config::get();
+    for (area, layout, container) in [
+        ("left", &config.layout.left, &widgets.left),
+        ("center", &config.layout.center, &widgets.center),
+        ("right", &config.layout.right, &widgets.right),
+    ] {
+        for name in layout {
+            let Some(config) = config.components.get(name) else {
+                warn!({ area, name }, "failed to find component in config");
+                continue;
+            };
+
+            trace!({ area, name }, "generating component from config");
+            container.generate_from_config(app_model, &config);
+        }
     }
 }
 

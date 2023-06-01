@@ -1,28 +1,45 @@
 use std::collections::BTreeMap;
 
+use serde::{Deserialize, Serialize};
 use tokio::sync::OnceCell;
 use wildflower::Pattern;
 
-use crate::util::UtilWidgetExt;
+use crate::{components::ConfigComponent, icons, util::UtilWidgetExt};
 
-static CONFIG: OnceCell<Config> = OnceCell::const_new();
+pub static CONFIG: OnceCell<Config> = OnceCell::const_new();
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag = "type")]
+pub enum Icon {
+    Literal { text: String },
+    Material { id: String },
+}
+
+impl ToString for Icon {
+    fn to_string(&self) -> String {
+        match self {
+            Icon::Literal { text } => text.to_owned(),
+            Icon::Material { id } => icons::material_design_icon(id),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Theme {
     pub font_family: String,
     /// Font size in px
-    pub font_size: u16,
+    pub font_size_px: u16,
     pub outer_padding: String,
     pub background: String,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Animations {
     pub enable: bool,
     pub target_fps: f64,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Monitor {
     pub animations: Animations,
 }
@@ -34,13 +51,24 @@ const DEFAULT_MONITOR: Monitor = Monitor {
     },
 };
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Layout {
+    pub left: Vec<String>,
+    pub center: Vec<String>,
+    pub right: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Config {
     /// Per-monitor configuration indexed by the monitor's connector, e.g. "HDMI-1", "DP-1", or
     /// "eDP1" depending how your monitor is connected. Accepts wildcards.
     pub monitors: BTreeMap<String, Monitor>,
 
     pub theme: Theme,
+
+    pub layout: Layout,
+
+    pub components: BTreeMap<String, ConfigComponent>,
 }
 
 impl Default for Config {
@@ -49,10 +77,36 @@ impl Default for Config {
             monitors: BTreeMap::from([("*".into(), DEFAULT_MONITOR)]),
             theme: Theme {
                 font_family: "Iosevka".into(),
-                font_size: 16,
+                font_size_px: 16,
                 outer_padding: "20px".into(),
                 background: "#24273A".into(), // Catppuccin Macchiato, base
             },
+            layout: Layout {
+                left: vec!["workspaces".into()],
+                center: vec!["time".into()],
+                right: vec![],
+            },
+            components: BTreeMap::from([
+                (
+                    "workspaces".into(),
+                    ConfigComponent::workspaces {
+                        init: crate::components::workspaces::WorkspacesInit {
+                            compositor: "hyprland".into(),
+                        },
+                    },
+                ),
+                (
+                    "time".into(),
+                    ConfigComponent::time {
+                        init: crate::components::time::TimeInit {
+                            icon: Icon::Material {
+                                id: "schedule".into(),
+                            },
+                            format: r#"%-I:%M<span alpha="50%%">:%S %p</span>"#.into(),
+                        },
+                    },
+                ),
+            ]),
         }
     }
 }
@@ -61,7 +115,7 @@ impl Config {
     pub fn scss_variables(&self) -> String {
         let vars = [
             ("font_family", &self.theme.font_family),
-            ("font_size", &format!("{}px", &self.theme.font_size)),
+            ("font_size", &format!("{}px", &self.theme.font_size_px)),
             ("outer_padding", &self.theme.outer_padding),
             ("background", &self.theme.background),
         ];
