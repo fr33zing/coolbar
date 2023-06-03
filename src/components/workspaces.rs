@@ -61,9 +61,7 @@ pub enum WorkspacesInput {
 pub enum WorkspacesOutput {}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct WorkspacesInit {
-    pub compositor: String,
-}
+pub struct WorkspacesInit {}
 
 #[relm4::component(async, pub)]
 impl SimpleAsyncComponent for WorkspacesModel {

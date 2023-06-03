@@ -115,7 +115,14 @@ pub struct Layout {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Providers {
+    pub wayland: Wayland,
     pub openrazer: OpenRazer,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Wayland {
+    // TODO add support for another compositor, this currently does nothing
+    pub compositor: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -154,6 +161,9 @@ impl Default for Config {
                 right: vec!["razer_mouse".into(), "volume".into()],
             },
             providers: Providers {
+                wayland: Wayland {
+                    compositor: "hyprland".into(),
+                },
                 openrazer: OpenRazer {
                     polling_rate: PollingRate::VariedByRatio {
                         interval: Duration::from_secs(2),
@@ -165,9 +175,7 @@ impl Default for Config {
                 (
                     "workspaces".into(),
                     ConfigComponent::workspaces {
-                        init: WorkspacesInit {
-                            compositor: "hyprland".into(),
-                        },
+                        init: WorkspacesInit {},
                     },
                 ),
                 (
