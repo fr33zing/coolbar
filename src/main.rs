@@ -22,7 +22,8 @@ mod util;
 
 use components::{AppModel, ConfigWidgetExt};
 
-const APPLICATION_ID: &str = "none.coolbar";
+pub const APPLICATION_NAME: &str = "coolbar";
+pub const APPLICATION_ID: &str = "none.coolbar";
 
 static START_INSTANT: OnceLock<Instant> = OnceLock::new();
 

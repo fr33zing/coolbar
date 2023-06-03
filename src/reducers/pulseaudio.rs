@@ -12,11 +12,9 @@ use relm4::{Reducer, Reducible};
 use tokio::{sync::OnceCell, task};
 use tracing::{debug, error, trace, warn};
 
-const CONTEXT_APP_NAME: &str = "FooApp"; // TODO change me lol
-const CONTEXT_NAME: &str = "FooAppContext";
+use crate::APPLICATION_NAME;
 
 pub static REDUCER: Reducer<PulseAudioReducer> = Reducer::new();
-
 static DEFAULT_SINK_NAME: OnceCell<String> = OnceCell::const_new();
 
 #[derive(Debug, Clone)]
@@ -71,7 +69,7 @@ async fn connect() -> Result<()> {
     let mut proplist = proplist.unwrap();
     let proplist_result = proplist.set_str(
         pulse::proplist::properties::APPLICATION_NAME,
-        CONTEXT_APP_NAME,
+        APPLICATION_NAME,
     );
     ensure!(proplist_result.is_ok(), "failed to setup proplist");
 
@@ -79,8 +77,12 @@ async fn connect() -> Result<()> {
         Mainloop::new().context("failed to create mainloop")?,
     ));
     let context = Rc::new(RefCell::new(
-        Context::new_with_proplist(mainloop.borrow().deref(), CONTEXT_NAME, &proplist)
-            .context("failed to create new context")?,
+        Context::new_with_proplist(
+            mainloop.borrow().deref(),
+            format!("{APPLICATION_NAME}_context").as_str(),
+            &proplist,
+        )
+        .context("failed to create new context")?,
     ));
 
     // Context state change callback
