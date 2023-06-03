@@ -385,6 +385,22 @@ async fn connect_event_socket() -> Result<()> {
                 let window_id = RawHyprlandWindow::fix_id(value.to_owned());
                 REDUCER.emit(HyprlandInput::CloseWindow(window_id));
             }
+            "moveworkspace" => {
+                // TODO determine if moveworkspace can be handled without needing a refresh
+            }
+            "screencast" => {
+                // TODO screencast state should be added to the trait
+            }
+            "urgent" => {
+                // TODO urgent window should be added to the trait, workspaces component should show
+                // which workspace contains the urgent window
+            }
+            "createworkspace" | "destroyworkspace" | "activewindow" => {
+                // Intentionally ignored
+
+                // TODO decide which of the remaining events should also be ignored or handled
+                // https://wiki.hyprland.org/IPC/
+            }
             _ => {
                 trace!({key, value}, "unhandled hyprland socket event");
             }
