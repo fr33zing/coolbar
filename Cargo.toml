@@ -11,6 +11,7 @@ version = "0.1.0"
 [dependencies]
 anyhow = "1.0.71"
 chrono = "0.4.24"
+chrono-tz = "0.8.2"
 clap = { version = "4.3.0", features = ["derive"] }
 gtk4-layer-shell = "0.0.3"
 humantime-serde = "1.1.1"

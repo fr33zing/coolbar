@@ -185,6 +185,7 @@ impl Default for Config {
                             icon: Icon::Material {
                                 id: "schedule".into(),
                             },
+                            timezone: None,
                             format: r#"%-I:%M<span alpha="50%%">:%S %p</span>"#.into(),
                         },
                     },

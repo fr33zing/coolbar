@@ -3,10 +3,9 @@
 
 * Planning
 ** Components
-- [-] Time
-  - [X] 12-hour
-  - [ ] 24-hour
-  - [ ] Timezones
+- [X] Time
+  - [X] Custom format
+  - [X] Timezones
 - [ ] Date
   - [ ] Calender
     - [ ] CalDAV integration

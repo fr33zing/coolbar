@@ -1,5 +1,6 @@
 use std::time::Duration;
 
+use chrono_tz::Tz;
 use relm4::{
     component::{AsyncComponentParts, SimpleAsyncComponent},
     gtk::{self, traits::BoxExt},
@@ -7,7 +8,7 @@ use relm4::{
 };
 use serde::{Deserialize, Serialize};
 use tokio::time;
-use tracing::debug;
+use tracing::{debug, warn};
 
 use crate::{
     components::iconbutton::{IconButtonInit, IconButtonModel},
@@ -17,6 +18,7 @@ use crate::{
 use super::iconbutton::IconButtonInput;
 
 pub struct TimeModel {
+    timezone: Option<Tz>,
     format: String,
     interval: time::Interval,
     iconbutton: Controller<IconButtonModel>,
@@ -33,6 +35,8 @@ pub enum Output {}
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TimeInit {
     pub icon: Icon,
+    /// See https://docs.rs/chrono-tz/latest/chrono_tz/#modules for timezones.
+    pub timezone: Option<String>,
     /// See [`chrono::format::strftime`] for supported escape sequences.
     pub format: String,
 }
@@ -59,17 +63,30 @@ impl SimpleAsyncComponent for TimeModel {
         let mut interval = time::interval(interval_duration(&init.format));
         interval.set_missed_tick_behavior(time::MissedTickBehavior::Skip);
 
+        let timezone: Option<Tz> = if let Some(timezone) = init.timezone {
+            match timezone.parse() {
+                Ok(timezone) => Some(timezone),
+                Err(err) => {
+                    warn!({ timezone, err }, "failed to parse timezone");
+                    None
+                }
+            }
+        } else {
+            None
+        };
+
         let iconbutton = IconButtonModel::builder()
             .launch(IconButtonInit {
                 class: "time".into(),
                 icon: init.icon,
-                text: format_time(&init.format),
+                text: format_time(&init.format, &timezone),
                 dim: false,
             })
             .detach();
 
         let model = TimeModel {
             format: init.format,
+            timezone,
             interval,
             iconbutton,
         };
@@ -85,7 +102,7 @@ impl SimpleAsyncComponent for TimeModel {
             TimeInput::Tick => {
                 self.iconbutton.emit(IconButtonInput {
                     icon: None,
-                    text: Some(format_time(&self.format)),
+                    text: Some(format_time(&self.format, &self.timezone)),
                     dim: None,
                 });
                 self.interval.tick().await;
@@ -104,6 +121,12 @@ fn interval_duration(format: &str) -> Duration {
     }
 }
 
-fn format_time(format: &str) -> String {
-    chrono::Local::now().format(format).to_string()
+fn format_time(format: &str, timezone: &Option<Tz>) -> String {
+    match timezone {
+        Some(timezone) => chrono::Utc::now()
+            .with_timezone(timezone)
+            .format(format)
+            .to_string(),
+        None => chrono::Local::now().format(format).to_string(),
+    }
 }
