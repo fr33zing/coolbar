@@ -147,8 +147,13 @@ fn startup(app: &gtk::Application) -> Result<()> {
 fn init() -> Result<()> {
     debug!("parsing command line arguments");
     let args = args::Args::parse();
-    if args.print_default_config {
-        let default_config = serde_yaml::to_string(&config::Config::default())?;
+    if let Some(format) = args.print_default_config {
+        let format = format.or(Some("yaml".into())).unwrap();
+        let default_config = match format.to_lowercase().as_str() {
+            "json" => serde_json::to_string_pretty(&config::Config::default())?,
+            "toml" => toml::to_string(&config::Config::default())?,
+            "yaml" | _ => serde_yaml::to_string(&config::Config::default())?,
+        };
         println!("{default_config}");
         return Ok(());
     }
