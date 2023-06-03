@@ -14,6 +14,8 @@ use crate::{
 };
 
 pub struct VolumeModel {
+    icon: Icon,
+    icon_muted: Icon,
     iconbutton: Controller<IconButtonModel>,
 }
 
@@ -27,7 +29,8 @@ pub enum VolumeOutput {}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct VolumeInit {
-    icon: Icon,
+    pub icon: Icon,
+    pub icon_muted: Icon,
 }
 
 #[relm4::component(async, pub)]
@@ -44,7 +47,7 @@ impl SimpleAsyncComponent for VolumeModel {
     }
 
     async fn init(
-        _init: Self::Init,
+        init: Self::Init,
         root: Self::Root,
         sender: AsyncComponentSender<Self>,
     ) -> AsyncComponentParts<Self> {
@@ -57,18 +60,21 @@ impl SimpleAsyncComponent for VolumeModel {
         });
 
         debug!("initializing volume component");
+        let VolumeInit { icon, icon_muted } = init;
         let iconbutton = IconButtonModel::builder()
             .launch(IconButtonInit {
                 class: "volume".into(),
-                icon: Icon::Material {
-                    id: "volume_off".into(),
-                },
+                icon: icon.clone(),
                 text: "???%".into(),
                 dim: true,
             })
             .detach();
 
-        let model = VolumeModel { iconbutton };
+        let model = VolumeModel {
+            icon,
+            icon_muted,
+            iconbutton,
+        };
         let widgets = view_output!();
 
         AsyncComponentParts { model, widgets }
@@ -77,11 +83,15 @@ impl SimpleAsyncComponent for VolumeModel {
     async fn update(&mut self, message: Self::Input, _sender: AsyncComponentSender<Self>) {
         match message {
             VolumeInput::Update(volume, muted) => {
-                let icon = if muted { "volume_off" } else { "volume_up" };
+                let icon = if muted {
+                    self.icon_muted.clone()
+                } else {
+                    self.icon.clone()
+                };
                 let text = util::pad_with_dim_leading_zeros(format!("{volume}%"), 4);
 
                 self.iconbutton.emit(IconButtonInput {
-                    icon: Some(Icon::Material { id: icon.into() }),
+                    icon: Some(icon),
                     text: Some(text),
                     dim: Some(muted),
                 });

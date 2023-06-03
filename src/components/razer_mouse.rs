@@ -16,12 +16,18 @@ use crate::{
 use super::iconbutton::IconButtonInput;
 
 pub struct RazerMouseModel {
+    icon: Icon,
+    icon_charging: Icon,
     iconbutton: Controller<IconButtonModel>,
 }
 
 #[derive(Debug)]
 pub enum RazerMouseInput {
-    Update(bool, f64),
+    Update {
+        detected: bool,
+        charging: bool,
+        battery_level: f64,
+    },
 }
 
 #[derive(Debug)]
@@ -30,6 +36,7 @@ pub enum RazerMouseOutput {}
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RazerMouseInit {
     pub icon: Icon,
+    pub icon_charging: Icon,
 }
 
 #[relm4::component(async, pub)]
@@ -53,8 +60,10 @@ impl SimpleAsyncComponent for RazerMouseModel {
         debug!("initializing razer mouse component");
 
         let (tx, rx) = relm4::channel();
-        OPENRAZER.subscribe(&tx, |msg| {
-            RazerMouseInput::Update(msg.mouse_detected, msg.mouse_battery)
+        OPENRAZER.subscribe(&tx, |msg| RazerMouseInput::Update {
+            detected: msg.mouse_detected,
+            charging: msg.mouse_charging,
+            battery_level: msg.mouse_battery_level,
         });
         relm4::spawn(async move {
             while let Some(msg) = rx.recv().await {
@@ -65,13 +74,17 @@ impl SimpleAsyncComponent for RazerMouseModel {
         let iconbutton = IconButtonModel::builder()
             .launch(IconButtonInit {
                 class: "mouse".into(),
-                icon: init.icon,
+                icon: init.icon.clone(),
                 text: "???%".into(),
                 dim: true,
             })
             .detach();
 
-        let model = RazerMouseModel { iconbutton };
+        let model = RazerMouseModel {
+            icon: init.icon,
+            icon_charging: init.icon_charging,
+            iconbutton,
+        };
         let widgets = view_output!();
 
         AsyncComponentParts { model, widgets }
@@ -79,16 +92,26 @@ impl SimpleAsyncComponent for RazerMouseModel {
 
     async fn update(&mut self, message: Self::Input, _sender: AsyncComponentSender<Self>) {
         match message {
-            RazerMouseInput::Update(detected, battery) => {
+            RazerMouseInput::Update {
+                detected,
+                charging,
+                battery_level,
+            } => {
+                let icon = if charging {
+                    &self.icon_charging
+                } else {
+                    &self.icon
+                };
+
                 let text = if detected {
-                    let battery = f64::round(battery);
+                    let battery = f64::round(battery_level);
                     util::pad_with_dim_leading_zeros(format!("{battery}%"), 4)
                 } else {
                     "Not detected".into()
                 };
 
                 self.iconbutton.emit(IconButtonInput {
-                    icon: None,
+                    icon: Some(icon.clone()),
                     text: Some(text),
                     dim: Some(!detected),
                 });

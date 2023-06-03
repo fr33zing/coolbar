@@ -17,6 +17,7 @@ use crate::{
 use super::iconbutton::IconButtonInput;
 
 pub struct TimeModel {
+    format: String,
     interval: time::Interval,
     iconbutton: Controller<IconButtonModel>,
 }
@@ -55,19 +56,20 @@ impl SimpleAsyncComponent for TimeModel {
         sender: AsyncComponentSender<Self>,
     ) -> AsyncComponentParts<Self> {
         debug!("initializing time component");
-        let mut interval = time::interval(Duration::from_secs(1));
+        let mut interval = time::interval(interval_duration(&init.format));
         interval.set_missed_tick_behavior(time::MissedTickBehavior::Skip);
 
         let iconbutton = IconButtonModel::builder()
             .launch(IconButtonInit {
                 class: "time".into(),
                 icon: init.icon,
-                text: format_time(),
+                text: format_time(&init.format),
                 dim: false,
             })
             .detach();
 
         let model = TimeModel {
+            format: init.format,
             interval,
             iconbutton,
         };
@@ -83,7 +85,7 @@ impl SimpleAsyncComponent for TimeModel {
             TimeInput::Tick => {
                 self.iconbutton.emit(IconButtonInput {
                     icon: None,
-                    text: Some(format_time()),
+                    text: Some(format_time(&self.format)),
                     dim: None,
                 });
                 self.interval.tick().await;
@@ -93,8 +95,15 @@ impl SimpleAsyncComponent for TimeModel {
     }
 }
 
-fn format_time() -> String {
-    chrono::Local::now()
-        .format(r#"%-I:%M<span alpha="50%%">:%S %p</span>"#)
-        .to_string()
+fn interval_duration(format: &str) -> Duration {
+    let seconds_escapes = ["%S", "%-S", "%_S", "%0S"];
+    if seconds_escapes.iter().any(|s| format.contains(s)) {
+        Duration::from_secs(1)
+    } else {
+        Duration::from_secs(60)
+    }
+}
+
+fn format_time(format: &str) -> String {
+    chrono::Local::now().format(format).to_string()
 }
