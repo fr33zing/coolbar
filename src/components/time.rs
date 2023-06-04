@@ -41,6 +41,18 @@ pub struct TimeInit {
     pub format: String,
 }
 
+impl Default for TimeInit {
+    fn default() -> Self {
+        Self {
+            icon: Icon::Material {
+                id: "schedule".into(),
+            },
+            timezone: None,
+            format: r#"%-I:%M<span alpha="50%%">:%S %p</span>"#.into(),
+        }
+    }
+}
+
 #[relm4::component(async, pub)]
 impl SimpleAsyncComponent for TimeModel {
     type Input = TimeInput;

@@ -63,6 +63,12 @@ pub enum WorkspacesOutput {}
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct WorkspacesInit {}
 
+impl Default for WorkspacesInit {
+    fn default() -> Self {
+        Self {}
+    }
+}
+
 #[relm4::component(async, pub)]
 impl SimpleAsyncComponent for WorkspacesModel {
     type Input = WorkspacesInput;

@@ -33,6 +33,19 @@ pub struct VolumeInit {
     pub icon_muted: Icon,
 }
 
+impl Default for VolumeInit {
+    fn default() -> Self {
+        Self {
+            icon: Icon::Material {
+                id: "volume_up".into(),
+            },
+            icon_muted: Icon::Material {
+                id: "volume_off".into(),
+            },
+        }
+    }
+}
+
 #[relm4::component(async, pub)]
 impl SimpleAsyncComponent for VolumeModel {
     type Input = VolumeInput;

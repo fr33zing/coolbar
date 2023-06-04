@@ -5,14 +5,7 @@ use serde::{Deserialize, Serialize};
 use tokio::sync::OnceCell;
 use wildflower::Pattern;
 
-use crate::{
-    components::{
-        razer_mouse::RazerMouseInit, time::TimeInit, volume::VolumeInit,
-        workspaces::WorkspacesInit, ConfigComponent,
-    },
-    icons,
-    util::UtilWidgetExt,
-};
+use crate::{components::ConfigComponent, icons, util::UtilWidgetExt};
 
 pub static CONFIG: OnceCell<Config> = OnceCell::const_new();
 
@@ -175,46 +168,25 @@ impl Default for Config {
                 (
                     "workspaces".into(),
                     ConfigComponent::workspaces {
-                        init: WorkspacesInit {},
+                        init: Default::default(),
                     },
                 ),
                 (
                     "time".into(),
                     ConfigComponent::time {
-                        init: TimeInit {
-                            icon: Icon::Material {
-                                id: "schedule".into(),
-                            },
-                            timezone: None,
-                            format: r#"%-I:%M<span alpha="50%%">:%S %p</span>"#.into(),
-                        },
+                        init: Default::default(),
                     },
                 ),
                 (
                     "razer_mouse".into(),
                     ConfigComponent::razer_mouse {
-                        init: RazerMouseInit {
-                            icon: Icon::Material { id: "mouse".into() },
-                            icon_charging: Icon::Multiple {
-                                icons: vec![
-                                    Icon::Material { id: "mouse".into() },
-                                    Icon::Material { id: "bolt".into() },
-                                ],
-                            },
-                        },
+                        init: Default::default(),
                     },
                 ),
                 (
                     "volume".into(),
                     ConfigComponent::volume {
-                        init: VolumeInit {
-                            icon: Icon::Material {
-                                id: "volume_up".into(),
-                            },
-                            icon_muted: Icon::Material {
-                                id: "volume_off".into(),
-                            },
-                        },
+                        init: Default::default(),
                     },
                 ),
             ]),

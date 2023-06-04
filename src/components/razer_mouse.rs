@@ -39,6 +39,20 @@ pub struct RazerMouseInit {
     pub icon_charging: Icon,
 }
 
+impl Default for RazerMouseInit {
+    fn default() -> Self {
+        Self {
+            icon: Icon::Material { id: "mouse".into() },
+            icon_charging: Icon::Multiple {
+                icons: vec![
+                    Icon::Material { id: "mouse".into() },
+                    Icon::Material { id: "bolt".into() },
+                ],
+            },
+        }
+    }
+}
+
 #[relm4::component(async, pub)]
 impl SimpleAsyncComponent for RazerMouseModel {
     type Input = RazerMouseInput;
