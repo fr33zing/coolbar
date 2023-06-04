@@ -395,7 +395,8 @@ async fn connect_event_socket() -> Result<()> {
                 // TODO urgent window should be added to the trait, workspaces component should show
                 // which workspace contains the urgent window
             }
-            "createworkspace" | "destroyworkspace" | "activewindow" => {
+            "createworkspace" | "destroyworkspace" | "activewindow" | "activewindowv2"
+            | "submap" => {
                 // Intentionally ignored
 
                 // TODO decide which of the remaining events should also be ignored or handled

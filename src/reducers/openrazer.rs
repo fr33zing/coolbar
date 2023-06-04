@@ -129,7 +129,6 @@ async fn connect() -> Result<()> {
             REDUCER.emit(OpenRazerInput::MouseError(err.to_string()));
             return Err(err);
         }
-        // let delay = BATTERY_POLL_RATE.offset_randomly(&mut rng);
         let delay = config::get()
             .providers
             .openrazer
@@ -196,7 +195,6 @@ fn update_mouse(dbus: &DBusConnection) -> Result<()> {
             .try_child_get::<bool>(0)?
             .ok_or_else(|| anyhow!("failed to get mouse charging status"))?
     };
-    trace!({ charging, mouse }, "got charging status");
 
     let battery_level = {
         let message = DBusMessage::new_method_call(
@@ -210,7 +208,6 @@ fn update_mouse(dbus: &DBusConnection) -> Result<()> {
             .try_child_get::<f64>(0)?
             .ok_or_else(|| anyhow!("failed to get mouse battery level"))?
     };
-    trace!({ battery_level, mouse }, "got battery level");
 
     REDUCER.emit(OpenRazerInput::MouseBattery {
         charging,
