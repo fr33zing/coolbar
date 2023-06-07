@@ -1,5 +1,6 @@
 * Bugs
 - OpenRazer sometimes reports 0% battery after mouse wakes from sleep mode
+- Program exits when system is suspended
 
 * Planning
 ** Components
