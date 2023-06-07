@@ -27,9 +27,9 @@
 - [ ] Laptop battery status
 - [-] Peripheral battery status
   - [-] OpenRazer
-    - [-] Mouse
+    - [X] Mouse
       - [X] Battery Level
-      - [ ] Charging status
+      - [X] Charging status
     - [ ] Keyboard
     - [ ] Headset
   - [ ] Generic
@@ -43,8 +43,8 @@
   - [ ] Toggle
   - [ ] List/connect to networks
   - [ ] VPN status
-- [-] Workspaces
-  - [-] Hyprland
+- [X] Workspaces
+  - [X] Hyprland
 - [ ] Scripts
   - [ ] Script output
     - [ ] Polling
@@ -58,8 +58,11 @@
 - [ ] Notification daemon
 - [ ] Multi-monitor support
 - [X] SCSS support
-- [ ] Configuration
-  - [ ] Nix support
+- [-] Configuration
+  - [-] Nix support
+    - [X] Development environment
+    - [X] Package
+    - [ ] Options
   - [ ] Custom stylesheet
-  - [ ] Per-monitor options
-  - [ ] Per-component options
+  - [X] Per-monitor options
+  - [X] Per-component options
