@@ -1,3 +1,4 @@
+use gtk::traits::ButtonExt;
 use relm4::gtk::traits::WidgetExt;
 use relm4::Component;
 use relm4::{gtk, ComponentParts, ComponentSender};
@@ -19,7 +20,9 @@ pub struct IconButtonInput {
 }
 
 #[derive(Debug)]
-pub enum IconButtonOutput {}
+pub enum IconButtonOutput {
+    Clicked,
+}
 
 pub struct IconButtonInit {
     pub icon: Icon,
@@ -41,6 +44,10 @@ impl Component for IconButtonModel {
             set_cursor_from_name: Some("pointer"),
             set_css_classes: &[&init.class],
 
+            connect_clicked[sender] => move |_| {
+                sender.output(IconButtonOutput::Clicked).expect("failed to send Clicked output");
+            },
+
             gtk::Box {
                 gtk::Label {
                     set_css_classes: &["icon"],
@@ -58,7 +65,7 @@ impl Component for IconButtonModel {
     fn init(
         init: Self::Init,
         root: &Self::Root,
-        _sender: ComponentSender<Self>,
+        sender: ComponentSender<Self>,
     ) -> ComponentParts<Self> {
         let model = IconButtonModel {
             icon: init.icon.to_string(),
