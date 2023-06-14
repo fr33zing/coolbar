@@ -1,3 +1,4 @@
+// TODO consider using hyprland crate
 use std::{collections::BTreeMap, env};
 
 use anyhow::{anyhow, Result};
