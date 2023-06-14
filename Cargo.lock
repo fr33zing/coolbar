@@ -257,6 +257,7 @@ dependencies = [
  "gtk4-layer-shell",
  "humantime-serde",
  "libpulse-binding",
+ "paste",
  "rand",
  "relm4",
  "relm4-components",
@@ -1145,6 +1146,12 @@ checksum = "c705f256449c60da65e11ff6626e0c16a0a0b96aaa348de61376b249bc340f41"
 dependencies = [
  "regex",
 ]
+
+[[package]]
+name = "paste"
+version = "1.0.12"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9f746c4065a8fa3fe23974dd82f15431cc8d40779821001404d10d2e79ca7d79"
 
 [[package]]
 name = "phf"

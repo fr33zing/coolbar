@@ -19,22 +19,31 @@ mod icons;
 pub mod macros;
 mod reducers;
 mod util;
+pub mod widgets;
 
-use components::{AppModel, ConfigWidgetExt};
+use components::AppModel;
+
+use crate::components::ConfigWidgetExt;
 
 pub const APPLICATION_NAME: &str = "coolbar";
 pub const APPLICATION_ID: &str = "none.coolbar";
 
-static START_INSTANT: OnceLock<Instant> = OnceLock::new();
+pub static BAR_HEIGHT: OnceCell<i32> = OnceCell::const_new();
+
+#[derive(Debug)]
+pub enum AppModelInput {
+    CheckHeight,
+}
 
 #[relm4::component(pub)]
 impl Component for AppModel {
-    type Input = ();
+    type Input = AppModelInput;
     type Output = ();
     type CommandOutput = ();
     type Init = ();
 
     view! {
+        #[root]
         gtk::Window {
             set_css_classes: &["window"],
 
@@ -95,7 +104,7 @@ fn generate_components_from_config(app_model: &mut AppModel, widgets: &AppModelW
             };
 
             trace!({ area, name }, "generating component from config");
-            container.generate_from_config(app_model, &config);
+            container.generate_child_from_config(app_model, &config);
         }
     }
 }

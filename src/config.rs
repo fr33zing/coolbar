@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use tokio::sync::OnceCell;
 use wildflower::Pattern;
 
-use crate::{components::ConfigComponent, icons, util::UtilWidgetExt};
+use crate::{components::ComponentConfig, icons, util::UtilWidgetExt};
 
 pub static CONFIG: OnceCell<Config> = OnceCell::const_new();
 
@@ -135,7 +135,7 @@ pub struct Config {
 
     pub providers: Providers,
 
-    pub components: BTreeMap<String, ConfigComponent>,
+    pub components: BTreeMap<String, ComponentConfig>,
 }
 
 impl Default for Config {
@@ -167,25 +167,25 @@ impl Default for Config {
             components: BTreeMap::from([
                 (
                     "workspaces".into(),
-                    ConfigComponent::workspaces {
+                    ComponentConfig::Workspaces {
                         init: Default::default(),
                     },
                 ),
                 (
                     "time".into(),
-                    ConfigComponent::time {
+                    ComponentConfig::Time {
                         init: Default::default(),
                     },
                 ),
                 (
                     "razer_mouse".into(),
-                    ConfigComponent::razer_mouse {
+                    ComponentConfig::RazerMouse {
                         init: Default::default(),
                     },
                 ),
                 (
                     "volume".into(),
-                    ConfigComponent::volume {
+                    ComponentConfig::Volume {
                         init: Default::default(),
                     },
                 ),

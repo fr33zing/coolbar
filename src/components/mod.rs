@@ -1,16 +1,13 @@
-#![allow(non_camel_case_types)] // TODO figure out how to get rid of this
-
 use crate::component_list;
 mod iconbutton;
 
-// Define components here.
-// Format: `module => model`
-//
-// The macro will handle declaring / importing / exporting everything.
-// The model's `Init` will be added to the config under `components.$model`.
-component_list! {
-    time => TimeModel,
-    volume => VolumeModel,
-    workspaces => WorkspacesModel,
-    razer_mouse => RazerMouseModel
-}
+/*
+Define components here.
+
+The macro will:
+  - Declare the module
+  - Create the ComponentConfig enum
+  - Give AppModel a vector to store multiple of each component
+  - Create generate_child_from_config extension function
+*/
+component_list![time, volume, workspaces, razer_mouse];
