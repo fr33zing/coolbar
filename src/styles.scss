@@ -1,3 +1,5 @@
+// TODO break this file apart into multiple files
+
 // Catppuccin Macchiato
 // https://github.com/catppuccin/palette/blob/main/scss/_macchiato.scss
 $rosewater: #f4dbd6;
@@ -42,12 +44,14 @@ $crust: #181926;
     outline: none;
 }
 
+$vertical-margin: 0.4em;
 $spacing: 0.4em;
 
 * {
     font-family: $font_family;
     font-size: $font_size;
     font-weight: bold;
+    // border-radius: 0;
 }
 
 .window {
@@ -55,7 +59,7 @@ $spacing: 0.4em;
 }
 
 .bar {
-    margin: 0.4em $outer_padding;
+    margin: $vertical-margin $outer_padding;
 
     // Spacing between components
     > * > * + * {
@@ -74,6 +78,44 @@ $spacing: 0.4em;
 button {
     @include color-button($text);
 }
+
+//
+// Panel
+//
+$popup-distance: $vertical-margin;
+$panel-margin-top: $vertical-margin;
+$panel-shadow-offset-y: 0.1em;
+$panel-shadow-blur-radius: 0.25em;
+$panel-shadow-color: rgba(black, 0.6);
+@keyframes popup {
+    from {
+        transform: translateY($panel-margin-top);
+        opacity: 0;
+    }
+    to {
+        transform: translateY($panel-margin-top + $popup-distance);
+        opacity: 1;
+    }
+}
+popover  {
+    padding-left: $panel-shadow-blur-radius;
+    padding-right: $panel-shadow-blur-radius;
+    padding-bottom: $panel-shadow-blur-radius + $popup-distance;
+
+    contents {
+        border: none;
+        border-radius: 0.4em;
+        box-shadow: 0
+                    $panel-shadow-offset-y
+                    $panel-shadow-blur-radius
+                    $panel-shadow-color;
+    }
+
+    &.visible contents {
+        animation: popup 160ms ease-out forwards;
+    }
+}
+
 
 .time { @include color-button($mauve); }
 .volume { @include color-button($sapphire); }
