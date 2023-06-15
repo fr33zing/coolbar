@@ -28,12 +28,8 @@ use crate::components::ConfigWidgetExt;
 pub const APPLICATION_NAME: &str = "coolbar";
 pub const APPLICATION_ID: &str = "none.coolbar";
 
-pub static BAR_HEIGHT: OnceCell<i32> = OnceCell::const_new();
-
 #[derive(Debug)]
-pub enum AppModelInput {
-    CheckHeight,
-}
+pub enum AppModelInput {}
 
 #[relm4::component(pub)]
 impl Component for AppModel {
@@ -83,8 +79,7 @@ impl Component for AppModel {
 
         generate_components_from_config(&mut model, &widgets);
 
-        let took_micros = START_INSTANT.get().unwrap().elapsed().as_micros();
-        info!({ took_micros }, "finished initializing app");
+        info!("finished initializing app");
 
         ComponentParts { model, widgets }
     }
@@ -199,13 +194,8 @@ fn handle_fatal_error(err: Error) {
 }
 
 fn main() {
-    START_INSTANT
-        .set(Instant::now())
-        .expect("failed to set start instant");
-
     if let Err(err) = init() {
         handle_fatal_error(err);
     }
-
     debug!("exiting");
 }
