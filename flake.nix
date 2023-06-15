@@ -4,9 +4,10 @@
     naersk.url = "github:nix-community/naersk";
     nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
     nixpkgs-mozilla.url = "github:mozilla/nixpkgs-mozilla";
+    nixgl.url = "github:guibou/nixGL";
   };
 
-  outputs = { self, flake-utils, naersk, nixpkgs, nixpkgs-mozilla }:
+  outputs = { self, flake-utils, naersk, nixpkgs, nixpkgs-mozilla, nixgl }:
     flake-utils.lib.eachDefaultSystem (system:
       let
         pkgs = import nixpkgs {
@@ -14,6 +15,7 @@
           overlays = [
             (import ./nix/overlay.nix)
             (import nixpkgs-mozilla)
+            nixgl.overlay
           ];
         };
 
@@ -30,13 +32,13 @@
 
         nativeBuildInputs = with pkgs; [
           pkg-config
-          gcc
           gobject-introspection
         ] ++ [
           toolchain
         ];
 
         buildInputs = with pkgs; [
+          glibcLocales
           glib
           gtk4
           gtk4-layer-shell
@@ -52,6 +54,11 @@
 
           devShell = pkgs.mkShell {
             inherit nativeBuildInputs buildInputs;
+            packages = with pkgs; [
+              (writeShellScriptBin "cargo" ''
+                ${lib.getExe pkgs.nixgl.auto.nixGLDefault} ${toolchain}/bin/cargo $@
+              '')
+            ];
           };
         }
     );
