@@ -52,13 +52,31 @@
             src = ./.;
           };
 
-          devShell = pkgs.mkShell {
+          devShell = with pkgs; mkShell {
             inherit nativeBuildInputs buildInputs;
-            packages = with pkgs; [
+
+            packages = if lib.inPureEvalMode then [] else [
               (writeShellScriptBin "cargo" ''
                 ${lib.getExe pkgs.nixgl.auto.nixGLDefault} ${toolchain}/bin/cargo $@
               '')
             ];
+
+            shellHook = let
+              pure = if lib.inPureEvalMode then "1" else "0";
+              grep = lib.getExe gnugrep;
+            in ''
+              if ${grep} -q "ID=nixos" /etc/os-release; then
+                if [ ${pure} -eq 0 ]; then
+                  printf "\n%s\n\n" 'Run `nix develop` without `--impure`. Impure mode is unnecessary on NixOS.'
+                  exit 1
+                fi
+              else
+                if [ ${pure} -eq 1 ]; then
+                  printf "\n%s\n\n" 'Run `nix develop --impure` to prevent fallback to software rendering.'
+                  exit 1
+                fi
+              fi
+            '';
           };
         }
     );
