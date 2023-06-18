@@ -51,6 +51,9 @@
     - [ ] Watching
   - [ ] Click-to-run
 - [ ] Screen share indicator
+- [ ] KDE Connect
+- [ ] Power menu
+  - [ ] Uptime
 
 ** Features
 - [X] Wayland support
