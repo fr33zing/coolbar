@@ -44,6 +44,12 @@ $crust: #181926;
     outline: none;
 }
 
+@mixin icon {
+    font-size: $font_size * 1.15;
+    font-weight: normal;
+    letter-spacing: -0.125em;
+}
+
 $vertical-margin: 0.4em;
 $spacing: 0.4em;
 
@@ -51,7 +57,6 @@ $spacing: 0.4em;
     font-family: $font_family;
     font-size: $font_size;
     font-weight: bold;
-    // border-radius: 0;
 }
 
 .window {
@@ -67,12 +72,14 @@ $spacing: 0.4em;
     }
 }
 
-.icon {
-    font-size: $font_size * 1.15;
-    font-family: "Material Icons";
-    font-weight: normal;
-    letter-spacing: -0.125em;
-    margin-right: 0.2em;
+.iconbutton {
+    .icon {
+        @include icon;
+    }
+
+    .label {
+        margin-left: 0.2em;
+    }
 }
 
 button {

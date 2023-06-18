@@ -42,7 +42,7 @@ impl Component for IconButtonModel {
         #[root]
         gtk::Button {
             set_cursor_from_name: Some("pointer"),
-            set_css_classes: &[&init.class],
+            set_css_classes: &[&init.class, "iconbutton"],
 
             connect_clicked[sender] => move |_| {
                 sender.output(IconButtonOutput::Clicked).expect("failed to send Clicked output");
@@ -55,6 +55,7 @@ impl Component for IconButtonModel {
                     set_markup: &util::dim_if(model.icon.to_string(), model.dim)
                 },
                 gtk::Label {
+                    set_css_classes: &["label"],
                     #[watch]
                     set_markup: &util::dim_if(model.text.clone(), model.dim)
                 }
