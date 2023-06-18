@@ -124,6 +124,10 @@ popover  {
 }
 
 
+.power {
+    @include color-button($peach);
+    .icon { @include icon; }
+}
 .time { @include color-button($mauve); }
 .volume { @include color-button($sapphire); }
 .mouse { @include color-button($green); }

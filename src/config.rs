@@ -149,7 +149,7 @@ impl Default for Config {
                 background: "#24273A".into(), // Catppuccin Macchiato, base
             },
             layout: Layout {
-                left: vec!["workspaces".into()],
+                left: vec!["power".into(), "workspaces".into()],
                 center: vec!["time".into()],
                 right: vec!["razer_mouse".into(), "volume".into()],
             },
@@ -165,6 +165,12 @@ impl Default for Config {
                 },
             },
             components: BTreeMap::from([
+                (
+                    "power".into(),
+                    ComponentConfig::Power {
+                        init: Default::default(),
+                    },
+                ),
                 (
                     "workspaces".into(),
                     ComponentConfig::Workspaces {
