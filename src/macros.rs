@@ -1,3 +1,14 @@
+#[macro_export]
+macro_rules! pango_span {
+    ($format_string:expr, { $( $key:ident: $value:expr ),* } ) => {
+        format!(
+            "<span {}>{}</span>",
+            vec![ $( format!("{}=\"{}\"", stringify!($key), $value) )* ].join(" "),
+            $format_string
+        )
+    }
+}
+
 /**
 Use this macro to make components available for dynamic creation via user configuration.
 
